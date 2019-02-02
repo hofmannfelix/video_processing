@@ -16,6 +16,7 @@
 		D2A5F2091F4A9144005CD714 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D2A5F2071F4A9144005CD714 /* Main.storyboard */; };
 		D2A5F20B1F4A9144005CD714 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D2A5F20A1F4A9144005CD714 /* Assets.xcassets */; };
 		D2A5F2211F4A96D0005CD714 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A5F2201F4A96D0005CD714 /* AppDelegate.swift */; };
+		DCA21586220621B5007F7CAE /* testfiles in Resources */ = {isa = PBXBuildFile; fileRef = DCA21585220621B5007F7CAE /* testfiles */; };
 		DCA4C0372202F64D00849E8D /* ImagesToVideoUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA4C0362202F64D00849E8D /* ImagesToVideoUtils.swift */; };
 		DCA4C03B2203014300849E8D /* VideoManipulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA4C03A2203014300849E8D /* VideoManipulation.swift */; };
 /* End PBXBuildFile section */
@@ -32,6 +33,7 @@
 		D2A5F20A1F4A9144005CD714 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D2A5F20F1F4A9144005CD714 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D2A5F2201F4A96D0005CD714 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		DCA21585220621B5007F7CAE /* testfiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = testfiles; sourceTree = "<group>"; };
 		DCA4C0362202F64D00849E8D /* ImagesToVideoUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesToVideoUtils.swift; sourceTree = "<group>"; };
 		DCA4C03A2203014300849E8D /* VideoManipulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoManipulation.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -68,6 +70,7 @@
 		D2A5F2021F4A9144005CD714 /* RWVideoNinja */ = {
 			isa = PBXGroup;
 			children = (
+				DCA21585220621B5007F7CAE /* testfiles */,
 				D2A5F2201F4A96D0005CD714 /* AppDelegate.swift */,
 				C0993CC22039D8A200165FCF /* HomeViewController.swift */,
 				C0993CC12039D8A200165FCF /* MergeVideoViewController.swift */,
@@ -143,6 +146,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DCA21586220621B5007F7CAE /* testfiles in Resources */,
 				D2A5F20B1F4A9144005CD714 /* Assets.xcassets in Resources */,
 				5C2901831F8F6DE700803663 /* LaunchScreen.storyboard in Resources */,
 				D2A5F2091F4A9144005CD714 /* Main.storyboard in Resources */,
