@@ -56,28 +56,24 @@ public class ImagesToVideoUtils: NSObject {
     self.assetWriter.startWriting()
     self.assetWriter.startSession(atSourceTime: kCMTimeZero)
     
-    let mediaInputQueue = DispatchQueue(label: "mediaInputQueue")
     var i = 0
-    
-    self.writeInput.requestMediaDataWhenReady(on: mediaInputQueue) {
+    let mediaInputQueue = DispatchQueue(label: "mediaInputQueue")
+    writeInput.requestMediaDataWhenReady(on: mediaInputQueue) {
       while(i < frames.count) {
-        if (self.writeInput.isReadyForMoreMediaData) {
-          var sampleBuffer:CVPixelBuffer?
-          autoreleasepool {
-            sampleBuffer = self.newPixelBufferFrom(cgImage: frames[i])
-            i += 1
-          }
-          if sampleBuffer != nil {
+        if self.writeInput.isReadyForMoreMediaData {
+          if let sampleBuffer = self.newPixelBufferFrom(cgImage: frames[i]) {
             if i == 0 {
-              self.bufferAdapter.append(sampleBuffer!, withPresentationTime: kCMTimeZero)
+              self.bufferAdapter.append(sampleBuffer, withPresentationTime: kCMTimeZero)
             } else {
               let value = i - 1
               let lastTime = CMTimeMake(Int64(value), self.frameRate.timescale)
               let presentTime = CMTimeAdd(lastTime, self.frameRate)
-              self.bufferAdapter.append(sampleBuffer!, withPresentationTime: presentTime)
+              self.bufferAdapter.append(sampleBuffer, withPresentationTime: presentTime)
             }
-            i += 1
           }
+          i += 1
+        } else {
+          print("not ready")
         }
         print(i)
       }
@@ -94,8 +90,8 @@ public class ImagesToVideoUtils: NSObject {
   func newPixelBufferFrom(cgImage:CGImage) -> CVPixelBuffer?{
     let options:[String: Any] = [kCVPixelBufferCGImageCompatibilityKey as String: true, kCVPixelBufferCGBitmapContextCompatibilityKey as String: true]
     var pxbuffer:CVPixelBuffer?
-    let frameWidth = self.videoSettings[AVVideoWidthKey] as! Int
-    let frameHeight = self.videoSettings[AVVideoHeightKey] as! Int
+    let frameWidth = videoSettings[AVVideoWidthKey] as! Int
+    let frameHeight = videoSettings[AVVideoHeightKey] as! Int
     let status = CVPixelBufferCreate(kCFAllocatorDefault, frameWidth, frameHeight, kCVPixelFormatType_32ARGB, options as CFDictionary?, &pxbuffer)
     assert(status == kCVReturnSuccess && pxbuffer != nil, "newPixelBuffer failed")
     
@@ -109,5 +105,49 @@ public class ImagesToVideoUtils: NSObject {
     context!.draw(cgImage, in: CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
     CVPixelBufferUnlockBaseAddress(pxbuffer!, CVPixelBufferLockFlags(rawValue: 0))
     return pxbuffer
+  }
+  
+  static func orientationFromTransform(_ transform: CGAffineTransform) -> (orientation: UIImageOrientation, isPortrait: Bool) {
+    var assetOrientation = UIImageOrientation.up
+    var isPortrait = false
+    if transform.a == 0 && transform.b == 1.0 && transform.c == -1.0 && transform.d == 0 {
+      assetOrientation = .right
+      isPortrait = true
+    } else if transform.a == 0 && transform.b == -1.0 && transform.c == 1.0 && transform.d == 0 {
+      assetOrientation = .left
+      isPortrait = true
+    } else if transform.a == 1.0 && transform.b == 0 && transform.c == 0 && transform.d == 1.0 {
+      assetOrientation = .up
+    } else if transform.a == -1.0 && transform.b == 0 && transform.c == 0 && transform.d == -1.0 {
+      assetOrientation = .down
+    }
+    return (assetOrientation, isPortrait)
+  }
+  
+  static func videoCompositionInstruction(_ track: AVCompositionTrack, asset: AVAsset) -> AVMutableVideoCompositionLayerInstruction {
+    let instruction = AVMutableVideoCompositionLayerInstruction(assetTrack: track)
+    let assetTrack = asset.tracks(withMediaType: AVMediaType.video)[0]
+    let transform = assetTrack.preferredTransform
+    let assetInfo = orientationFromTransform(transform)
+    
+    var scaleToFitRatio = UIScreen.main.bounds.width / assetTrack.naturalSize.width
+    if assetInfo.isPortrait {
+      scaleToFitRatio = UIScreen.main.bounds.width / assetTrack.naturalSize.height
+      let scaleFactor = CGAffineTransform(scaleX: scaleToFitRatio, y: scaleToFitRatio)
+      instruction.setTransform(assetTrack.preferredTransform.concatenating(scaleFactor), at: kCMTimeZero)
+    } else {
+      let scaleFactor = CGAffineTransform(scaleX: scaleToFitRatio, y: scaleToFitRatio)
+      var concat = assetTrack.preferredTransform.concatenating(scaleFactor)
+        .concatenating(CGAffineTransform(translationX: 0, y: UIScreen.main.bounds.width / 2))
+      if assetInfo.orientation == .down {
+        let fixUpsideDown = CGAffineTransform(rotationAngle: CGFloat(Double.pi))
+        let windowBounds = UIScreen.main.bounds
+        let yFix = assetTrack.naturalSize.height + windowBounds.height
+        let centerFix = CGAffineTransform(translationX: assetTrack.naturalSize.width, y: yFix)
+        concat = fixUpsideDown.concatenating(centerFix).concatenating(scaleFactor)
+      }
+      instruction.setTransform(concat, at: kCMTimeZero)
+    }
+    return instruction
   }
 }

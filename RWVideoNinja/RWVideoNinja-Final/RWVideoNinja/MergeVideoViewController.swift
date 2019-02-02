@@ -130,7 +130,7 @@ class MergeVideoViewController: UIViewController {
     do {
       try secondTrack.insertTimeRange(CMTimeRangeMake(kCMTimeZero, secondAsset.duration),
                                       of: secondAsset.tracks(withMediaType: .video)[0],
-                                      at: firstAsset.duration)
+                                      at: kCMTimeZero) // firstAsset.duration
     } catch {
       print("Failed to load second track")
       return
@@ -138,7 +138,7 @@ class MergeVideoViewController: UIViewController {
     
     // 2.1
     let mainInstruction = AVMutableVideoCompositionInstruction()
-    mainInstruction.timeRange = CMTimeRangeMake(kCMTimeZero, CMTimeAdd(firstAsset.duration, secondAsset.duration))
+    mainInstruction.timeRange = CMTimeRangeMake(kCMTimeZero, CMTimeMaximum(firstAsset.duration, secondAsset.duration))
     
     // 2.2
     let firstInstruction = VideoHelper.videoCompositionInstruction(firstTrack, asset: firstAsset)
@@ -198,6 +198,36 @@ class MergeVideoViewController: UIViewController {
         player.play()
       }
     })
+  }
+  
+  @IBAction func generateDuration(_ sender: AnyObject) {
+    //guard let asset = firstAsset else { return }
+    
+    let label = UILabel(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+    label.text = "Test label"
+    label.textColor = .white
+    let img = image(with: label)!.cgImage!
+    
+    VideoManipulation.generateVideoFromFrames(frames: [img,img,img,img], fps: 1, completion: { fileUrl in
+      
+      let player = AVPlayer(url: fileUrl)
+      let playerController = AVPlayerViewController()
+      playerController.player = player
+      self.present(playerController, animated: true) {
+        player.play()
+      }
+    })
+  }
+  
+  private func image(with view: UIView) -> UIImage? {
+    UIGraphicsBeginImageContextWithOptions(view.bounds.size, view.isOpaque, 0.0)
+    defer { UIGraphicsEndImageContext() }
+    if let context = UIGraphicsGetCurrentContext() {
+      view.layer.render(in: context)
+      let image = UIGraphicsGetImageFromCurrentImageContext()
+      return image
+    }
+    return nil
   }
 }
 
