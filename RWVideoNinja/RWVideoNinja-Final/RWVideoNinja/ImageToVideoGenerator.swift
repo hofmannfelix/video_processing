@@ -4,12 +4,6 @@ import UIKit
 
 typealias ImageToVideoCompletion = (URL) -> Void
 
-protocol FrameProvider {
-  var frameSize: CGSize { get }
-  var hasFrames: Bool { get }
-  var nextFrame: CGImage? { get }
-}
-
 class ImageToVideoGenerator {
   
   static let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)

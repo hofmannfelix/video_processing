@@ -1,12 +1,9 @@
-
 import UIKit
 import AVFoundation
 import MobileCoreServices
 
 class VideoManipulation {
   
-  //static let fps = asset.tracks(withMediaType: .video).first?.nominalFrameRate
-
   static func generateTimelapse(filePath: String, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
     let fileUrl = URL(fileURLWithPath: filePath)
     let asset = AVURLAsset(url: fileUrl, options: nil)
@@ -54,34 +51,6 @@ class VideoManipulation {
     let generator = ImageToVideoGenerator(frameProvider: frameProvider, frameRate: frameRate, completionBlock: completion)
     generator.startGeneration()
   }
-  
-//  private static func createDirectory(_ directory: String) -> URL? {
-//    //let fileExists = FileManager.default.fileExists(atPath: fileLocation)
-//
-//    let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-//    let dataPath = documentsDirectory.appendingPathComponent(directory)
-//    do {
-//      try FileManager.default.createDirectory(atPath: dataPath.absoluteString, withIntermediateDirectories: false, attributes: nil)
-//    } catch let error {
-//      print(error.localizedDescription);
-//    }
-//    return dataPath
-//  }
-//
-//  private static func writeCGImage(_ image: CGImage, to destinationURL: URL, filename: String) {
-//    do {
-//      if let mutableData = CFDataCreateMutable(nil, 0),
-//        let destination = CGImageDestinationCreateWithData(mutableData, kUTTypePNG, 1, nil) {
-//        CGImageDestinationAddImage(destination, image, nil)
-//        if CGImageDestinationFinalize(destination) {
-//          let data = mutableData as Data
-//          try data.write(to: destinationURL.appendingPathComponent(filename))
-//        }
-//      }
-//    } catch let error {
-//      print(error.localizedDescription)
-//    }
-//  }
   
   static func mergeVideos(firstAsset: AVAsset, secondAsset: AVAsset, completion: @escaping (URL) -> ()) {
     let mixComposition = AVMutableComposition()
@@ -160,49 +129,3 @@ class VideoManipulation {
     }
   }
 }
-
-class BufferedFrameProvider: FrameProvider {
-  let frameSize: CGSize
-  let numberOfFrames: Int
-  var frameIndex: Int = 0
-  var frames = [CGImage]()
-  var currentFrame: CGImage? = nil
-  
-  init(totalFrames: Int, frameSize: CGSize) {
-    self.numberOfFrames = totalFrames
-    self.frameSize = frameSize
-  }
-  
-  var hasFrames: Bool {
-    return frameIndex < numberOfFrames
-  }
-  
-  var nextFrame: CGImage? {
-    currentFrame = nil
-    if !frames.isEmpty {
-      DispatchQueue.main.async {
-        self.currentFrame = self.frames.removeFirst()
-        self.frameIndex += 1
-        print("read frame with index \(self.frameIndex)")
-      }
-      while currentFrame == nil {}
-    }
-    return currentFrame
-  }
-  
-  func pushFrame(frame: CGImage) {
-    DispatchQueue.main.async {
-      self.frames.append(frame)
-      print("pushed new frame")
-    }
-  }
-}
-
-//class FileFrameProvider: FrameProvider {
-//  var frameSize: CGSize
-//  
-//  var hasFrames: Bool
-//  
-//  var nextFrame: CGImage?
-//  
-//}
