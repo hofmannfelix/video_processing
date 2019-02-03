@@ -2,21 +2,25 @@ import Foundation
 import AVFoundation
 import UIKit
 
-typealias CXEMovieMakerCompletion = (URL) -> Void
+typealias ImageToVideoCompletion = (URL) -> Void
+typealias FrameProvider = (Int) -> CGImage?
 
-public class ImagesToVideoUtils: NSObject {
+public class ImageToVideoGenerator {
   
   static let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
   static let tempPath = paths[0] + "/exportvideo.mp4"
   static let fileURL = URL(fileURLWithPath: tempPath)
   
-  var assetWriter:AVAssetWriter!
-  var writeInput:AVAssetWriterInput!
-  var bufferAdapter:AVAssetWriterInputPixelBufferAdaptor!
-  var videoSettings:[String : Any]!
-  var frameRate:CMTime!
+  private var assetWriter:AVAssetWriter!
+  private var writeInput:AVAssetWriterInput!
+  private var bufferAdapter:AVAssetWriterInputPixelBufferAdaptor!
   
-  var completionBlock: CXEMovieMakerCompletion?
+  private var videoSettings: [String : Any]!
+  private var frameRate: CMTime!
+  private var framesPath: String!
+  
+  var frameProvider: FrameProvider? = { _ in return nil }
+  var completionBlock: ImageToVideoCompletion? = { _ in }
   
   public class func videoSettings(width:Int, height:Int) -> [String: Any]{
     if(Int(width) % 16 != 0) {
@@ -28,40 +32,34 @@ public class ImagesToVideoUtils: NSObject {
     return videoSettings
   }
   
-  public init(videoSettings: [String: Any], frameRate: CMTime) {
-    super.init()
-    
-    if(FileManager.default.fileExists(atPath: ImagesToVideoUtils.tempPath)){
-      guard (try? FileManager.default.removeItem(atPath: ImagesToVideoUtils.tempPath)) != nil else {
+  public init(framesPath: String, frameRate: CMTime, videoSettings: [String: Any]) {
+    if(FileManager.default.fileExists(atPath: ImageToVideoGenerator.tempPath)){
+      guard (try? FileManager.default.removeItem(atPath: ImageToVideoGenerator.tempPath)) != nil else {
         print("remove path failed")
         return
       }
     }
-    
-    self.assetWriter = try! AVAssetWriter(url: ImagesToVideoUtils.fileURL, fileType: AVFileType.mov)
-    
+    self.assetWriter = try! AVAssetWriter(url: ImageToVideoGenerator.fileURL, fileType: .mov)
     self.videoSettings = videoSettings
-    self.writeInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: videoSettings)
-    assert(self.assetWriter.canAdd(self.writeInput), "add failed")
-    
+    self.writeInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+    assert(assetWriter.canAdd(self.writeInput), "add failed")
     self.assetWriter.add(self.writeInput)
     let bufferAttributes:[String: Any] = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32ARGB)]
     self.bufferAdapter = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: self.writeInput, sourcePixelBufferAttributes: bufferAttributes)
     self.frameRate = frameRate
+    self.framesPath = framesPath
   }
   
-  func createMovieFromSource(frames: [CGImage], withCompletion: @escaping CXEMovieMakerCompletion) {
-    self.completionBlock = withCompletion
-    
+  func startGeneration() {
     self.assetWriter.startWriting()
     self.assetWriter.startSession(atSourceTime: kCMTimeZero)
     
     var i = 0
     let mediaInputQueue = DispatchQueue(label: "mediaInputQueue")
     writeInput.requestMediaDataWhenReady(on: mediaInputQueue) {
-      while(i < frames.count) {
+      while let frame = self.frameProvider?(i) {
         if self.writeInput.isReadyForMoreMediaData {
-          if let sampleBuffer = self.newPixelBufferFrom(cgImage: frames[i]) {
+          if let sampleBuffer = self.newPixelBufferFrom(cgImage: frame) {
             if i == 0 {
               self.bufferAdapter.append(sampleBuffer, withPresentationTime: kCMTimeZero)
             } else {
@@ -72,16 +70,12 @@ public class ImagesToVideoUtils: NSObject {
             }
           }
           i += 1
-        } else {
-          print("not ready")
         }
-        print(i)
       }
       self.writeInput.markAsFinished()
       self.assetWriter.finishWriting {
-        
         DispatchQueue.main.sync {
-          self.completionBlock!(ImagesToVideoUtils.fileURL)
+          self.completionBlock?(ImageToVideoGenerator.fileURL)
         }
       }
     }
@@ -107,7 +101,8 @@ public class ImagesToVideoUtils: NSObject {
     return pxbuffer
   }
   
-  static func orientationFromTransform(_ transform: CGAffineTransform) -> (orientation: UIImageOrientation, isPortrait: Bool) {
+  //Helper methods
+  /*static func orientationFromTransform(_ transform: CGAffineTransform) -> (orientation: UIImageOrientation, isPortrait: Bool) {
     var assetOrientation = UIImageOrientation.up
     var isPortrait = false
     if transform.a == 0 && transform.b == 1.0 && transform.c == -1.0 && transform.d == 0 {
@@ -149,5 +144,5 @@ public class ImagesToVideoUtils: NSObject {
       instruction.setTransform(concat, at: kCMTimeZero)
     }
     return instruction
-  }
+  }*/
 }

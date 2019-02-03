@@ -17,7 +17,7 @@
 		D2A5F20B1F4A9144005CD714 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D2A5F20A1F4A9144005CD714 /* Assets.xcassets */; };
 		D2A5F2211F4A96D0005CD714 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A5F2201F4A96D0005CD714 /* AppDelegate.swift */; };
 		DCA21586220621B5007F7CAE /* testfiles in Resources */ = {isa = PBXBuildFile; fileRef = DCA21585220621B5007F7CAE /* testfiles */; };
-		DCA4C0372202F64D00849E8D /* ImagesToVideoUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA4C0362202F64D00849E8D /* ImagesToVideoUtils.swift */; };
+		DCA4C0372202F64D00849E8D /* ImageToVideoGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA4C0362202F64D00849E8D /* ImageToVideoGenerator.swift */; };
 		DCA4C03B2203014300849E8D /* VideoManipulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA4C03A2203014300849E8D /* VideoManipulation.swift */; };
 /* End PBXBuildFile section */
 
@@ -34,7 +34,7 @@
 		D2A5F20F1F4A9144005CD714 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D2A5F2201F4A96D0005CD714 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		DCA21585220621B5007F7CAE /* testfiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = testfiles; sourceTree = "<group>"; };
-		DCA4C0362202F64D00849E8D /* ImagesToVideoUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesToVideoUtils.swift; sourceTree = "<group>"; };
+		DCA4C0362202F64D00849E8D /* ImageToVideoGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageToVideoGenerator.swift; sourceTree = "<group>"; };
 		DCA4C03A2203014300849E8D /* VideoManipulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoManipulation.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -81,7 +81,7 @@
 				D2A5F20A1F4A9144005CD714 /* Assets.xcassets */,
 				5C2901821F8F6DE700803663 /* LaunchScreen.storyboard */,
 				D2A5F20F1F4A9144005CD714 /* Info.plist */,
-				DCA4C0362202F64D00849E8D /* ImagesToVideoUtils.swift */,
+				DCA4C0362202F64D00849E8D /* ImageToVideoGenerator.swift */,
 				DCA4C03A2203014300849E8D /* VideoManipulation.swift */,
 			);
 			path = RWVideoNinja;
@@ -164,7 +164,7 @@
 				C0993CC82039D8A200165FCF /* RecordVideoViewController.swift in Sources */,
 				C0993CC62039D8A200165FCF /* HomeViewController.swift in Sources */,
 				DCA4C03B2203014300849E8D /* VideoManipulation.swift in Sources */,
-				DCA4C0372202F64D00849E8D /* ImagesToVideoUtils.swift in Sources */,
+				DCA4C0372202F64D00849E8D /* ImageToVideoGenerator.swift in Sources */,
 				C0993CCA2039EF9F00165FCF /* VideoHelper.swift in Sources */,
 				D2A5F2211F4A96D0005CD714 /* AppDelegate.swift in Sources */,
 				C0993CC52039D8A200165FCF /* MergeVideoViewController.swift in Sources */,

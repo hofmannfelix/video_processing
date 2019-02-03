@@ -189,7 +189,7 @@ class MergeVideoViewController: UIViewController {
   
   @IBAction func generateTimelapse(_ sender: AnyObject) {
     guard let asset = firstAsset else { return }
-    VideoManipulation.generateTimelapse(asset: asset, completion: { fileUrl in
+    VideoManipulation.generateTimelapse(asset: asset, fps: 30, speed: 2, completion: { fileUrl in
       
       let player = AVPlayer(url: fileUrl)
       let playerController = AVPlayerViewController()
@@ -203,20 +203,20 @@ class MergeVideoViewController: UIViewController {
   @IBAction func generateDuration(_ sender: AnyObject) {
     //guard let asset = firstAsset else { return }
     
-    let label = UILabel(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
-    label.text = "Test label"
-    label.textColor = .white
-    let img = image(with: label)!.cgImage!
+//    let label = UILabel(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+//    label.text = "Test label"
+//    label.textColor = .white
+//    let img = image(with: label)!.cgImage!
     
-    VideoManipulation.generateVideoFromFrames(frames: [img,img,img,img], fps: 1, completion: { fileUrl in
-      
-      let player = AVPlayer(url: fileUrl)
-      let playerController = AVPlayerViewController()
-      playerController.player = player
-      self.present(playerController, animated: true) {
-        player.play()
-      }
-    })
+//    VideoManipulation.generateVideoFromFrames(with: [img,img,img,img], fps: 1, speed: 1, completion: { fileUrl in
+//
+//      let player = AVPlayer(url: fileUrl)
+//      let playerController = AVPlayerViewController()
+//      playerController.player = player
+//      self.present(playerController, animated: true) {
+//        player.play()
+//      }
+//    })
   }
   
   private func image(with view: UIView) -> UIImage? {
