@@ -190,8 +190,9 @@ class MergeVideoViewController: UIViewController {
   @IBAction func generateTimelapse(_ sender: AnyObject) {
     guard let asset = firstAsset else { return }
     VideoManipulation.generateTimelapse(asset: asset, fps: 30, speed: 2, completion: { fileUrl in
+      guard let url = fileUrl else { return }
       
-      let player = AVPlayer(url: fileUrl)
+      let player = AVPlayer(url: url)
       let playerController = AVPlayerViewController()
       playerController.player = player
       self.present(playerController, animated: true) {

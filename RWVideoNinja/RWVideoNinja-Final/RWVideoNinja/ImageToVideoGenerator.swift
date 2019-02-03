@@ -3,9 +3,14 @@ import AVFoundation
 import UIKit
 
 typealias ImageToVideoCompletion = (URL) -> Void
-typealias FrameProvider = (Int) -> CGImage?
 
-public class ImageToVideoGenerator {
+protocol FrameProvider {
+  var frameSize: CGSize { get }
+  var hasFrames: Bool { get }
+  var nextFrame: CGImage? { get }
+}
+
+class ImageToVideoGenerator {
   
   static let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
   static let tempPath = paths[0] + "/exportvideo.mp4"
@@ -14,40 +19,29 @@ public class ImageToVideoGenerator {
   private var assetWriter:AVAssetWriter!
   private var writeInput:AVAssetWriterInput!
   private var bufferAdapter:AVAssetWriterInputPixelBufferAdaptor!
-  
-  private var videoSettings: [String : Any]!
   private var frameRate: CMTime!
-  private var framesPath: String!
+  private var frameProvider: FrameProvider!
+  private var completionBlock: ImageToVideoCompletion?
   
-  var frameProvider: FrameProvider? = { _ in return nil }
-  var completionBlock: ImageToVideoCompletion? = { _ in }
-  
-  public class func videoSettings(width:Int, height:Int) -> [String: Any]{
-    if(Int(width) % 16 != 0) {
-      print("warning: video settings width must be divisible by 16")
-    }
-    let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecType.jpeg, //AVVideoCodecH264,
-      AVVideoWidthKey: width,
-      AVVideoHeightKey: height]
-    return videoSettings
-  }
-  
-  public init(framesPath: String, frameRate: CMTime, videoSettings: [String: Any]) {
+  public init(frameProvider: FrameProvider, frameRate: CMTime, completionBlock: ImageToVideoCompletion?) {
     if(FileManager.default.fileExists(atPath: ImageToVideoGenerator.tempPath)){
       guard (try? FileManager.default.removeItem(atPath: ImageToVideoGenerator.tempPath)) != nil else {
         print("remove path failed")
         return
       }
     }
+    let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecType.jpeg, //AVVideoCodecH264,
+      AVVideoWidthKey: Int(frameProvider.frameSize.width),
+      AVVideoHeightKey: Int(frameProvider.frameSize.width)]
     self.assetWriter = try! AVAssetWriter(url: ImageToVideoGenerator.fileURL, fileType: .mov)
-    self.videoSettings = videoSettings
     self.writeInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
     assert(assetWriter.canAdd(self.writeInput), "add failed")
     self.assetWriter.add(self.writeInput)
     let bufferAttributes:[String: Any] = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32ARGB)]
     self.bufferAdapter = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: self.writeInput, sourcePixelBufferAttributes: bufferAttributes)
     self.frameRate = frameRate
-    self.framesPath = framesPath
+    self.frameProvider = frameProvider
+    self.completionBlock = completionBlock
   }
   
   func startGeneration() {
@@ -57,8 +51,9 @@ public class ImageToVideoGenerator {
     var i = 0
     let mediaInputQueue = DispatchQueue(label: "mediaInputQueue")
     writeInput.requestMediaDataWhenReady(on: mediaInputQueue) {
-      while let frame = self.frameProvider?(i) {
+      while self.frameProvider.hasFrames {
         if self.writeInput.isReadyForMoreMediaData {
+          guard let frame = self.frameProvider.nextFrame else { continue }
           if let sampleBuffer = self.newPixelBufferFrom(cgImage: frame) {
             if i == 0 {
               self.bufferAdapter.append(sampleBuffer, withPresentationTime: kCMTimeZero)
@@ -68,8 +63,8 @@ public class ImageToVideoGenerator {
               let presentTime = CMTimeAdd(lastTime, self.frameRate)
               self.bufferAdapter.append(sampleBuffer, withPresentationTime: presentTime)
             }
+            i += 1
           }
-          i += 1
         }
       }
       self.writeInput.markAsFinished()
@@ -84,8 +79,8 @@ public class ImageToVideoGenerator {
   func newPixelBufferFrom(cgImage:CGImage) -> CVPixelBuffer?{
     let options:[String: Any] = [kCVPixelBufferCGImageCompatibilityKey as String: true, kCVPixelBufferCGBitmapContextCompatibilityKey as String: true]
     var pxbuffer:CVPixelBuffer?
-    let frameWidth = videoSettings[AVVideoWidthKey] as! Int
-    let frameHeight = videoSettings[AVVideoHeightKey] as! Int
+    let frameWidth = cgImage.width
+    let frameHeight = cgImage.height
     let status = CVPixelBufferCreate(kCFAllocatorDefault, frameWidth, frameHeight, kCVPixelFormatType_32ARGB, options as CFDictionary?, &pxbuffer)
     assert(status == kCVReturnSuccess && pxbuffer != nil, "newPixelBuffer failed")
     
