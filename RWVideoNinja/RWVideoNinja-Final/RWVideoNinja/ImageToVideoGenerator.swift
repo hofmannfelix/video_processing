@@ -18,7 +18,7 @@ class ImageToVideoGenerator {
   private var completionBlock: ImageToVideoCompletion?
   
   public init(frameProvider: FrameProvider, frameRate: CMTime, completionBlock: ImageToVideoCompletion?) {
-    if(FileManager.default.fileExists(atPath: ImageToVideoGenerator.tempPath)){
+    if(FileManager.default.fileExists(atPath: ImageToVideoGenerator.tempPath)) {
       guard (try? FileManager.default.removeItem(atPath: ImageToVideoGenerator.tempPath)) != nil else {
         print("remove path failed")
         return
@@ -26,7 +26,7 @@ class ImageToVideoGenerator {
     }
     let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecType.jpeg, //AVVideoCodecH264,
       AVVideoWidthKey: Int(frameProvider.frameSize.width),
-      AVVideoHeightKey: Int(frameProvider.frameSize.width)]
+      AVVideoHeightKey: Int(frameProvider.frameSize.height)]
     self.assetWriter = try! AVAssetWriter(url: ImageToVideoGenerator.fileURL, fileType: .mov)
     self.writeInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
     assert(assetWriter.canAdd(self.writeInput), "add failed")
@@ -49,6 +49,7 @@ class ImageToVideoGenerator {
         if self.writeInput.isReadyForMoreMediaData {
           guard let frame = self.frameProvider.nextFrame else { continue }
           if let sampleBuffer = self.newPixelBufferFrom(cgImage: frame) {
+            print("Write Frame \(i)")
             if i == 0 {
               self.bufferAdapter.append(sampleBuffer, withPresentationTime: kCMTimeZero)
             } else {
@@ -70,7 +71,7 @@ class ImageToVideoGenerator {
     }
   }
   
-  func newPixelBufferFrom(cgImage:CGImage) -> CVPixelBuffer?{
+  func newPixelBufferFrom(cgImage: CGImage) -> CVPixelBuffer?{
     let options:[String: Any] = [kCVPixelBufferCGImageCompatibilityKey as String: true, kCVPixelBufferCGBitmapContextCompatibilityKey as String: true]
     var pxbuffer:CVPixelBuffer?
     let frameWidth = cgImage.width
@@ -81,11 +82,13 @@ class ImageToVideoGenerator {
     CVPixelBufferLockBaseAddress(pxbuffer!, CVPixelBufferLockFlags(rawValue: 0))
     let pxdata = CVPixelBufferGetBaseAddress(pxbuffer!)
     let rgbColorSpace = CGColorSpaceCreateDeviceRGB()
+    let rect = CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
     let context = CGContext(data: pxdata, width: frameWidth, height: frameHeight, bitsPerComponent: 8, bytesPerRow: CVPixelBufferGetBytesPerRow(pxbuffer!), space: rgbColorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue)
     assert(context != nil, "context is nil")
     
+    context!.clear(rect)
     context!.concatenate(CGAffineTransform.identity)
-    context!.draw(cgImage, in: CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
+    context!.draw(cgImage, in: rect)
     CVPixelBufferUnlockBaseAddress(pxbuffer!, CVPixelBufferLockFlags(rawValue: 0))
     return pxbuffer
   }

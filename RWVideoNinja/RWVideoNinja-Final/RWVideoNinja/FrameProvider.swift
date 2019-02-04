@@ -45,25 +45,52 @@ class BufferedFrameProvider: FrameProvider {
 }
 
 class FileFrameProvider: FrameProvider {
-  let frameSize: CGSize
   let filesPath: String
-  var frameIndex: Int = 0
-  var hasFrames: Bool
+  var frameSize: CGSize = .zero
+  var frameIndex: Int = 1
+  var hasFrames: Bool = false
   
-  init(frameSize: CGSize, filesPath: String) {
-    self.frameSize = frameSize
+  init(filesPath: String) {
     self.filesPath = filesPath
-    self.hasFrames = true
+    if let frame = frameAtCurrentIndex {
+      frameSize = CGSize(width: frame.width, height: frame.height)
+      hasFrames = true
+    }
   }
   
   var nextFrame: CGImage? {
-    let path = filesPath.contains("%@") ? String(format: filesPath, frameIndex) : filesPath
-    if let frame = UIImage(contentsOfFile: path)?.cgImage {
+    if let frame = frameAtCurrentIndex {
       frameIndex += 1
       return frame
     } else {
       hasFrames = false
       return nil
     }
+  }
+  
+  private var frameAtCurrentIndex: CGImage? {
+    let path = filesPath.contains("%@") ? String(format: filesPath, String(frameIndex)) : filesPath
+    return UIImage(contentsOfFile: path)?.cgImage
+  }
+}
+
+class ArrayFrameProvider: FrameProvider {
+  let frames: [CGImage]
+  var index: Int = 0
+  let frameSize: CGSize
+  
+  var hasFrames: Bool {
+    return index < frames.count
+  }
+  
+  var nextFrame: CGImage? {
+    let frame = frames[index]
+    index += 1
+    return frame
+  }
+  
+  init(frames: [CGImage]) {
+    frameSize = CGSize(width: frames.first?.width ?? 0, height: frames.first?.height ?? 0)
+    self.frames = frames
   }
 }

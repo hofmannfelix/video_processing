@@ -46,7 +46,12 @@ class VideoManipulation {
     return frameProvider
   }
   
-  static func generateVideoFromFrames(with frameProvider: FrameProvider, fps: Int, speed: Double, completion: @escaping (URL) -> ()) {
+  static func generateVideoFromFrameFiles(at filesPath: String, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
+    let frameProvider = FileFrameProvider(filesPath: filesPath)
+    generateVideoFromFrames(with: frameProvider, fps: fps, speed: speed, completion: completion)
+  }
+  
+  static func generateVideoFromFrames(with frameProvider: FrameProvider, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
     let frameRate = CMTimeMake(1, Int32(Double(60*fps/60)))
     let generator = ImageToVideoGenerator(frameProvider: frameProvider, frameRate: frameRate, completionBlock: completion)
     generator.startGeneration()

@@ -204,10 +204,41 @@ class MergeVideoViewController: UIViewController {
   @IBAction func generateDuration(_ sender: AnyObject) {
     //guard let asset = firstAsset else { return }
     
+    copyFolders()
+    
+    print("start generating clip")
+
+    let dirPaths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+    let docsFolder = dirPaths!.appendingPathComponent("test").relativePath
+    let filepath = docsFolder + "/countdown-%@.png"
+    
 //    let label = UILabel(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
 //    label.text = "Test label"
 //    label.textColor = .white
-//    let img = image(with: label)!.cgImage!
+//    label.backgroundColor = .red
+//    let cgImg = image(with: label)!.cgImage!
+//    let img = UIImage.init(cgImage: cgImg)
+//    let data = UIImageJPEGRepresentation(img, 1)
+//    var frames = [CGImage]()
+//    for i in 0..<10 {
+//      frames.append(cgImg)
+//      //try? data?.write(to: URL(fileURLWithPath: String.init(format: filepath, String(i))))
+//    }
+    
+//    let frameProvider = ArrayFrameProvider(frames: frames)
+//    VideoManipulation.generateVideoFromFrames(with: frameProvider, fps: 1, speed: 1) { fileUrl in
+        VideoManipulation.generateVideoFromFrameFiles(at: filepath, fps: 1, speed: 1) { fileUrl in
+        guard let url = fileUrl else { return }
+
+        self.firstAsset = AVAsset(url: url)
+      
+        let player = AVPlayer(url: url)
+        let playerController = AVPlayerViewController()
+        playerController.player = player
+        self.present(playerController, animated: true) {
+            player.play()
+        }
+    }
     
 //    VideoManipulation.generateVideoFromFrames(with: [img,img,img,img], fps: 1, speed: 1, completion: { fileUrl in
 //
@@ -219,6 +250,32 @@ class MergeVideoViewController: UIViewController {
 //      }
 //    })
   }
+  
+    private func copyFolders() {
+      let filemgr = FileManager.default
+      let dirPaths = filemgr.urls(for: .documentDirectory, in: .userDomainMask).first
+      let folderPath = Bundle.main.resourceURL!.appendingPathComponent("testfiles").path
+      let docsFolder = dirPaths!.appendingPathComponent("test").path
+      if !filemgr.fileExists(atPath: docsFolder) {
+        copyFiles(pathFromBundle: folderPath, pathDestDocs: docsFolder)
+      } else {
+        print("Files exist")
+      }
+    }
+
+    private func copyFiles(pathFromBundle : String, pathDestDocs: String) {
+      let fileManagerIs = FileManager.default
+      do {
+        let filelist = try fileManagerIs.contentsOfDirectory(atPath: pathFromBundle)
+        try? fileManagerIs.copyItem(atPath: pathFromBundle, toPath: pathDestDocs)
+        
+        for filename in filelist {
+          try? fileManagerIs.copyItem(atPath: "\(pathFromBundle)/\(filename)", toPath: "\(pathDestDocs)/\(filename)")
+        }
+      } catch {
+        print("\nError\n")
+      }
+    }
   
   private func image(with view: UIView) -> UIImage? {
     UIGraphicsBeginImageContextWithOptions(view.bounds.size, view.isOpaque, 0.0)
