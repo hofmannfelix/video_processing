@@ -202,7 +202,7 @@ class MergeVideoViewController: UIViewController {
   }
   
   @IBAction func generateDuration(_ sender: AnyObject) {
-    //guard let asset = firstAsset else { return }
+    guard let asset = firstAsset else { return }
     
     copyFolders()
     
@@ -211,6 +211,23 @@ class MergeVideoViewController: UIViewController {
     let dirPaths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
     let docsFolder = dirPaths!.appendingPathComponent("test").relativePath
     let filepath = docsFolder + "/countdown-%@.png"
+    
+    let fileProvider = FileFrameProvider(filesPath: filepath, totalFrames: 10)
+    let bufferedProvider = VideoManipulation.generateImages(asset: asset, fps: 30, speed: 2)
+    let mixedProvider = MixedFrameProvider(provider: [bufferedProvider!, fileProvider])
+    
+    VideoManipulation.generateVideoFromFrames(with: mixedProvider, fps: 30, speed: 2) { url in
+      guard let url = url else { return }
+      
+      self.firstAsset = AVAsset(url: url)
+      
+      let player = AVPlayer(url: url)
+      let playerController = AVPlayerViewController()
+      playerController.player = player
+      self.present(playerController, animated: true) {
+        player.play()
+      }
+    }
     
 //    let label = UILabel(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
 //    label.text = "Test label"
@@ -227,18 +244,21 @@ class MergeVideoViewController: UIViewController {
     
 //    let frameProvider = ArrayFrameProvider(frames: frames)
 //    VideoManipulation.generateVideoFromFrames(with: frameProvider, fps: 1, speed: 1) { fileUrl in
-        VideoManipulation.generateVideoFromFrameFiles(at: filepath, fps: 1, speed: 1) { fileUrl in
-        guard let url = fileUrl else { return }
-
-        self.firstAsset = AVAsset(url: url)
-      
-        let player = AVPlayer(url: url)
-        let playerController = AVPlayerViewController()
-        playerController.player = player
-        self.present(playerController, animated: true) {
-            player.play()
-        }
-    }
+    
+    
+//
+//    VideoManipulation.generateVideoFromFrames(with: mixedProvider, fps: 1, speed: 1) { fileUrl in
+//        guard let url = fileUrl else { return }
+//
+//        self.firstAsset = AVAsset(url: url)
+//
+//        let player = AVPlayer(url: url)
+//        let playerController = AVPlayerViewController()
+//        playerController.player = player
+//        self.present(playerController, animated: true) {
+//            player.play()
+//        }
+//    }
     
 //    VideoManipulation.generateVideoFromFrames(with: [img,img,img,img], fps: 1, speed: 1, completion: { fileUrl in
 //
