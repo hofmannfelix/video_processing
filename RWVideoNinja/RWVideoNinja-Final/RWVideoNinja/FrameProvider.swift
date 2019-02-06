@@ -141,19 +141,19 @@ class MixedFrameProvider: FrameProvider {
   
   var nextFrame: CGImage? {
     fatalError("Not implemented for Mixed Frame Provider")
-    return nil
   }
   
   var nextFrameBuffer: CVPixelBuffer? {
-    var frames = [CGImage?]()
-    let nextIndex = Double(frameIndex) + 1
+    var frames = [CGImage]()
+    let nextIndex = Double(frameIndex)
     for i in 0 ..< frameProvider.count {
       let provider = frameProvider[i]
       let index = Int(nextIndex * Double(provider.totalFrames)/Double(maxFrameProvider.totalFrames))
-      if frameForIndex[i].0 < index {
-        frameForIndex[i] = (index, provider.nextFrame)
+      guard let frame = frameForIndex[i].0 == index ? frameForIndex[i].1 : provider.nextFrame else {
+        return nil
       }
-      frames.append(frameForIndex[i].1)
+      frameForIndex[i] = (index, frame)
+      frames.append(frame)
     }
     return BufferGenerator.newPixelBufferFrom(cgImages: frames,
                                               width: Int(frameSize.width),
