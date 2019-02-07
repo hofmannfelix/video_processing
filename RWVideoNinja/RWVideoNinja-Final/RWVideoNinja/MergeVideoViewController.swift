@@ -33,6 +33,7 @@ import Photos
 import AVKit
 
 class MergeVideoViewController: UIViewController {
+  var assetUrl: URL?
   var firstAsset: AVAsset?
   var secondAsset: AVAsset?
   var audioAsset: AVAsset?
@@ -189,38 +190,32 @@ class MergeVideoViewController: UIViewController {
   
   @IBAction func generateTimelapse(_ sender: AnyObject) {
     guard let asset = firstAsset else { return }
-    VideoManipulation.generateTimelapse(asset: asset, fps: 30, speed: 2, completion: { fileUrl in
-      guard let url = fileUrl else { return }
-      
-      let player = AVPlayer(url: url)
-      let playerController = AVPlayerViewController()
-      playerController.player = player
-      self.present(playerController, animated: true) {
-        player.play()
-      }
-    })
+//    VideoManipulation.generateTimelapse(asset: asset, fps: 30, speed: 2, completion: { fileUrl in
+//      guard let url = fileUrl else { return }
+//
+//      let player = AVPlayer(url: url)
+//      let playerController = AVPlayerViewController()
+//      playerController.player = player
+//      self.present(playerController, animated: true) {
+//        player.play()
+//      }
+//    })
   }
   
   @IBAction func generateDuration(_ sender: AnyObject) {
-    guard let asset = firstAsset else { return }
+    guard let assetPath = assetUrl?.relativePath else { return }
     
-    copyFolders()
-    
-    print("start generating clip")
-
     let dirPaths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
     let docsFolder = dirPaths!.appendingPathComponent("test").relativePath
     let filepath = docsFolder + "/countdown-%@.png"
     
-    let fileProvider = FileFrameProvider(filesPath: filepath, totalFrames: 10)
-    let bufferedProvider = VideoManipulation.generateImages(asset: asset, fps: 30, speed: 2)
-    let mixedProvider = MixedFrameProvider(provider: [bufferedProvider!, fileProvider])
+    print("File 1: ", assetPath)
+    print("File 2: ", filepath)
     
-    VideoManipulation.generateVideoFromFrames(with: mixedProvider, fps: 30, speed: 2) { url in
+    VideoManipulation.generateVideo(assetPaths: [assetPath, filepath], outputFps: 30, outputSpeed: 2) { url in
       guard let url = url else { return }
-      
-      self.firstAsset = AVAsset(url: url)
-      
+      print("generation completed")
+
       let player = AVPlayer(url: url)
       let playerController = AVPlayerViewController()
       playerController.player = player
@@ -228,6 +223,26 @@ class MergeVideoViewController: UIViewController {
         player.play()
       }
     }
+    
+    //guard let asset = firstAsset else { return }
+    
+//    let fileProvider = FileFrameProvider(filesPath: filepath)
+//    let bufferedProvider = VideoManipulation.generateImages(asset: firstAsset!, fps: 30, speed: 2)
+//    let mixedProvider = MixedFrameProvider(provider: [bufferedProvider!, fileProvider])
+//
+//    VideoManipulation.generateVideoFromFrames(with: mixedProvider, fps: 30, speed: 2) { url in
+//      guard let url = url else { return }
+//      print("generation completed")
+//
+//      self.firstAsset = AVAsset(url: url)
+//
+//      let player = AVPlayer(url: url)
+//      let playerController = AVPlayerViewController()
+//      playerController.player = player
+//      self.present(playerController, animated: true) {
+//        player.play()
+//      }
+//    }
     
 //    let label = UILabel(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
 //    label.text = "Test label"
@@ -327,6 +342,7 @@ extension MergeVideoViewController: UIImagePickerControllerDelegate {
       message = "Video two loaded"
       secondAsset = avAsset
     }
+    assetUrl = url
     let alert = UIAlertController(title: "Asset Loaded", message: message, preferredStyle: .alert)
     alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.cancel, handler: nil))
     present(alert, animated: true, completion: nil)

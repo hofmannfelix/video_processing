@@ -4,18 +4,18 @@ import MobileCoreServices
 
 class VideoManipulation {
   
-  static func generateTimelapse(filePath: String, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
-    let fileUrl = URL(fileURLWithPath: filePath)
-    let asset = AVURLAsset(url: fileUrl, options: nil)
-    generateTimelapse(asset: asset, fps: fps, speed: speed, completion: completion)
-  }
-  
-  static func generateTimelapse(asset: AVAsset, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
-    guard let frameProvider = generateImages(asset: asset, fps: fps, speed: speed) else {
-      completion(nil)
-      return
-    }
-    generateVideoFromFrames(with: frameProvider, fps: fps, speed: speed, completion: completion)
+  static func generateVideo(assetPaths: [String], outputFps: Int, outputSpeed: Double, completion: @escaping (URL?) -> ()) {
+    let isImg: (String) -> Bool = { $0.contains(".jpg") || $0.contains(".png") }
+    let providers = assetPaths
+      .map { path -> FrameProvider? in
+        return isImg(path.lowercased())
+          ? FileFrameProvider(filesPath: path)
+          : generateImages(filePath: path, fps: outputFps, speed: outputSpeed)
+      }
+      .filter { $0 != nil }
+      .map { $0! }
+    let mixedProvider = MixedFrameProvider(provider: providers)
+    generateVideoFromFrames(with: mixedProvider, fps: outputFps, speed: outputSpeed, completion: completion)
   }
   
   static func generateVideoFromFrames(with frameProvider: FrameProvider, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
@@ -27,10 +27,6 @@ class VideoManipulation {
   static func generateImages(filePath: String, fps: Int, speed: Double) -> BufferedFrameProvider? {
     let fileUrl = URL(fileURLWithPath: filePath)
     let asset = AVURLAsset(url: fileUrl, options: nil)
-    return generateImages(asset: asset, fps: fps, speed: speed)
-  }
-  
-  static func generateImages(asset: AVAsset, fps: Int, speed: Double) -> BufferedFrameProvider? {
     let videoDuration = asset.duration
     let generator = AVAssetImageGenerator(asset: asset)
     generator.requestedTimeToleranceAfter = kCMTimeZero
@@ -57,9 +53,4 @@ class VideoManipulation {
     })
     return frameProvider
   }
-  
-//  static func generateVideoFromFrameFiles(at filesPath: String, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
-//    let frameProvider = FileFrameProvider(filesPath: filesPath)
-//    generateVideoFromFrames(with: frameProvider, fps: fps, speed: speed, completion: completion)
-//  }
 }

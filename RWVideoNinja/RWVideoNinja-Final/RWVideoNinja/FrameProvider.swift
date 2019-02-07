@@ -58,9 +58,9 @@ class FileFrameProvider: FrameProvider {
   var frameIndex: Int = 0
   var hasFrames: Bool = false
   
-  init(filesPath: String, totalFrames: Int) {
+  init(filesPath: String) {
     self.filesPath = filesPath
-    self.totalFrames = totalFrames
+    self.totalFrames = FileFrameProvider.filesAtPath(filesPath)
     if let frame = frameAtCurrentIndex {
       frameSize = CGSize(width: frame.width, height: frame.height)
       hasFrames = true
@@ -85,32 +85,17 @@ class FileFrameProvider: FrameProvider {
     let path = filesPath.contains("%@") ? String(format: filesPath, String(frameIndex)) : filesPath
     return UIImage(contentsOfFile: path)?.cgImage
   }
-}
-
-class ArrayFrameProvider: FrameProvider {
-  let totalFrames: Int
-  let frames: [CGImage]
-  var frameIndex: Int = 0
-  let frameSize: CGSize
   
-  init(frames: [CGImage]) {
-    frameSize = CGSize(width: frames.first?.width ?? 0, height: frames.first?.height ?? 0)
-    self.frames = frames
-    self.totalFrames = frames.count
-  }
-  
-  var hasFrames: Bool {
-    return frameIndex < frames.count
-  }
-  
-  var nextFrame: CGImage? {
-    let frame = frames[frameIndex]
-    frameIndex += 1
-    return frame
-  }
-  
-  var nextFrameBuffer: CVPixelBuffer? {
-    return BufferGenerator.newPixelBufferFrom(cgImage: nextFrame)
+  static private func filesAtPath(_ path: String) -> Int {
+    if path.contains("%@") {
+      var i = 0
+      while FileManager.default.fileExists(atPath: String(format: path, String(i))) {
+        i += 1
+      }
+      return i
+    } else {
+      return 1
+    }
   }
 }
 

@@ -2,8 +2,6 @@ import Foundation
 import AVFoundation
 import UIKit
 
-typealias ImageToVideoCompletion = (URL) -> Void
-
 class ImageToVideoGenerator {
   
   static let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
@@ -15,9 +13,9 @@ class ImageToVideoGenerator {
   private var bufferAdapter:AVAssetWriterInputPixelBufferAdaptor!
   private var frameRate: CMTime!
   private var frameProvider: FrameProvider!
-  private var completionBlock: ImageToVideoCompletion?
+  private var completionBlock: ((URL) -> Void)?
   
-  public init(frameProvider: FrameProvider, frameRate: CMTime, completionBlock: ImageToVideoCompletion?) {
+  public init(frameProvider: FrameProvider, frameRate: CMTime, completionBlock: ((URL) -> Void)?) {
     if(FileManager.default.fileExists(atPath: ImageToVideoGenerator.tempPath)) {
       guard (try? FileManager.default.removeItem(atPath: ImageToVideoGenerator.tempPath)) != nil else {
         print("remove path failed")
