@@ -11,12 +11,26 @@ public class SwiftVideoManipulationPlugin: NSObject, FlutterPlugin {
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    result("iOS " + UIDevice.current.systemVersion)
+    if call.method == "generateVideo" {
+        if let args = call.arguments as? [AnyObject],
+            let paths = args[0] as? [String],
+            let fps = args[1] as? Int,
+            let speed = args[2] as? Double {
+            VideoManipulation.generateVideo(assetPaths: paths, outputFps: fps, outputSpeed: speed) { url in
+                result(url?.relativePath)
+            }
+        } else {
+            result(nil)
+        }
+    }
+    
+    else if call.method == "getPlatformVersion" {
+        result("iOS " + UIDevice.current.systemVersion)
+    }
   }
 }
 
-class VideoManipulation {
-    
+private class VideoManipulation {
     static func generateVideo(assetPaths: [String], outputFps: Int, outputSpeed: Double, completion: @escaping (URL?) -> ()) {
         let isImg: (String) -> Bool = { $0.contains(".jpg") || $0.contains(".png") }
         let providers = assetPaths
@@ -27,6 +41,10 @@ class VideoManipulation {
             }
             .filter { $0 != nil }
             .map { $0! }
+        guard !providers.isEmpty else {
+            completion(nil)
+            return
+        }
         let mixedProvider = MixedFrameProvider(provider: providers)
         generateVideoFromFrames(with: mixedProvider, fps: outputFps, speed: outputSpeed, completion: completion)
     }
@@ -164,7 +182,7 @@ private class BufferGenerator {
     }
 }
 
-protocol FrameProvider {
+private protocol FrameProvider {
     var totalFrames: Int { get }
     var frameIndex: Int { get }
     var frameSize: CGSize { get }
@@ -173,7 +191,7 @@ protocol FrameProvider {
     var nextFrameBuffer: CVPixelBuffer? { get }
 }
 
-class BufferedFrameProvider: FrameProvider {
+private class BufferedFrameProvider: FrameProvider {
     let frameSize: CGSize
     let totalFrames: Int
     var frameIndex: Int = 0
@@ -214,7 +232,7 @@ class BufferedFrameProvider: FrameProvider {
     }
 }
 
-class FileFrameProvider: FrameProvider {
+private class FileFrameProvider: FrameProvider {
     let totalFrames: Int
     let filesPath: String
     var frameSize: CGSize = .zero
@@ -262,9 +280,9 @@ class FileFrameProvider: FrameProvider {
     }
 }
 
-class MixedFrameProvider: FrameProvider {
+private class MixedFrameProvider: FrameProvider {
     let frameProvider: [FrameProvider]
-    let maxFrameProvider: FrameProvider
+    let maxFrameProvider: FrameProvider?
     var frameForIndex: [(Int, CGImage?)]
     let totalFrames: Int
     let frameSize: CGSize
@@ -272,19 +290,19 @@ class MixedFrameProvider: FrameProvider {
     init(provider: [FrameProvider]) {
         frameProvider = provider
         frameForIndex = provider.map({ _ in return (-1, nil) })
-        maxFrameProvider = provider.max(by: { $0.totalFrames < $1.totalFrames })!
-        totalFrames = maxFrameProvider.totalFrames
+        maxFrameProvider = provider.max(by: { $0.totalFrames < $1.totalFrames })
+        totalFrames = maxFrameProvider?.totalFrames ?? 0
         let width = provider.max(by: { $0.frameSize.width < $1.frameSize.width })?.frameSize.width ?? 0
         let height = provider.max(by: { $0.frameSize.height < $1.frameSize.height })?.frameSize.height ?? 0
         frameSize = CGSize(width: width, height: height)
     }
     
     var frameIndex: Int {
-        return maxFrameProvider.frameIndex
+        return maxFrameProvider?.frameIndex ?? 0
     }
     
     var hasFrames: Bool {
-        return maxFrameProvider.hasFrames
+        return maxFrameProvider?.hasFrames ?? false
     }
     
     var nextFrame: CGImage? {
@@ -296,7 +314,7 @@ class MixedFrameProvider: FrameProvider {
         let nextIndex = Double(frameIndex)
         for i in 0 ..< frameProvider.count {
             let provider = frameProvider[i]
-            let index = Int(nextIndex * Double(provider.totalFrames)/Double(maxFrameProvider.totalFrames))
+            let index = Int(nextIndex * Double(provider.totalFrames)/Double(maxFrameProvider!.totalFrames))
             guard let frame = frameForIndex[i].0 == index ? frameForIndex[i].1 : provider.nextFrame else {
                 return nil
             }

@@ -10,4 +10,8 @@ class VideoManipulation {
     final String version = await _channel.invokeMethod('getPlatformVersion');
     return version;
   }
+
+  static Future<String> generateVideo(List<String> paths, int fps, double speed) async {
+    return await _channel.invokeMethod('generateVideo', [paths, fps, speed]);
+  }
 }
