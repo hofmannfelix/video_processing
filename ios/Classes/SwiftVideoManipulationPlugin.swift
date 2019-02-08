@@ -14,10 +14,10 @@ public class SwiftVideoManipulationPlugin: NSObject, FlutterPlugin {
     if call.method == "generateVideo" {
         if let args = call.arguments as? [AnyObject],
             let paths = args[0] as? [String],
-            let filename = args[1] as? [String],
+            let filename = args[1] as? String,
             let fps = args[2] as? Int,
             let speed = args[3] as? Double {
-            VideoManipulation.generateVideo(assetPaths: paths, outputFps: fps, outputSpeed: speed) { url in
+            VideoManipulation.generateVideo(assetPaths: paths, outputFilename: filename, outputFps: fps, outputSpeed: speed) { url in
                 result(url?.relativePath)
             }
         } else {
@@ -32,7 +32,7 @@ public class SwiftVideoManipulationPlugin: NSObject, FlutterPlugin {
 }
 
 private class VideoManipulation {
-    static func generateVideo(assetPaths: [String], outputFps: Int, outputSpeed: Double, completion: @escaping (URL?) -> ()) {
+    static func generateVideo(assetPaths: [String], outputFilename: String, outputFps: Int, outputSpeed: Double, completion: @escaping (URL?) -> ()) {
         let isImg: (String) -> Bool = { $0.contains(".jpg") || $0.contains(".png") }
         let providers = assetPaths
             .map { path -> FrameProvider? in
@@ -47,12 +47,12 @@ private class VideoManipulation {
             return
         }
         let mixedProvider = MixedFrameProvider(provider: providers)
-        generateVideoFromFrames(with: mixedProvider, fps: outputFps, speed: outputSpeed, completion: completion)
+        generateVideoFromFrames(with: mixedProvider, outputFilename: outputFilename, fps: outputFps, speed: outputSpeed, completion: completion)
     }
     
-    static func generateVideoFromFrames(with frameProvider: FrameProvider, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
+    static func generateVideoFromFrames(with frameProvider: FrameProvider, outputFilename: String, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
         let frameRate = CMTimeMake(1, Int32(Double(60*fps/60)))
-        let generator = ImageToVideoGenerator(frameProvider: frameProvider, frameRate: frameRate, completionBlock: completion)
+        let generator = ImageToVideoGenerator(frameProvider: frameProvider, outputFilename: outputFilename, frameRate: frameRate, completionBlock: completion)
         generator.startGeneration()
     }
     
@@ -88,33 +88,39 @@ private class VideoManipulation {
 }
 
 private class ImageToVideoGenerator {
-    static let paths = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)
-    static let tempPath = paths[0] + "/exportvideo.mp4"
-    static let fileURL = URL(fileURLWithPath: tempPath)
-    
     private var assetWriter:AVAssetWriter!
     private var writeInput:AVAssetWriterInput!
     private var bufferAdapter:AVAssetWriterInputPixelBufferAdaptor!
     private var frameRate: CMTime!
     private var frameProvider: FrameProvider!
+    private var filename: String!
     private var completionBlock: ((URL) -> Void)?
     
-    public init(frameProvider: FrameProvider, frameRate: CMTime, completionBlock: ((URL) -> Void)?) {
-        if(FileManager.default.fileExists(atPath: ImageToVideoGenerator.tempPath)) {
-            guard (try? FileManager.default.removeItem(atPath: ImageToVideoGenerator.tempPath)) != nil else {
+    private var outputFilePath: String {
+        let docDir = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first!
+        let path = docDir + "/" + filename + ".mp4"
+        return path
+    }
+    
+    public init(frameProvider: FrameProvider, outputFilename: String, frameRate: CMTime, completionBlock: ((URL?) -> Void)?) {
+        filename = outputFilename
+        if(FileManager.default.fileExists(atPath: outputFilePath)) {
+            guard (try? FileManager.default.removeItem(atPath: outputFilePath)) != nil else {
                 print("remove path failed")
+                completionBlock?(nil)
                 return
             }
         }
         let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecJPEG, //AVVideoCodecH264,
             AVVideoWidthKey: Int(frameProvider.frameSize.width),
             AVVideoHeightKey: Int(frameProvider.frameSize.height)]
-        self.assetWriter = try! AVAssetWriter(url: ImageToVideoGenerator.fileURL, fileType: .mov)
-        self.writeInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
-        assert(assetWriter.canAdd(self.writeInput), "add failed")
-        self.assetWriter.add(self.writeInput)
+        let outputFileUrl = URL(fileURLWithPath: outputFilePath)
+        assetWriter = try! AVAssetWriter(url: outputFileUrl, fileType: .mov)
+        writeInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
+        assert(assetWriter.canAdd(writeInput), "add failed")
+        assetWriter.add(writeInput)
         let bufferAttributes:[String: Any] = [kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32ARGB)]
-        self.bufferAdapter = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: self.writeInput, sourcePixelBufferAttributes: bufferAttributes)
+        bufferAdapter = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: self.writeInput, sourcePixelBufferAttributes: bufferAttributes)
         self.frameRate = frameRate
         self.frameProvider = frameProvider
         self.completionBlock = completionBlock
@@ -144,7 +150,8 @@ private class ImageToVideoGenerator {
             self.writeInput.markAsFinished()
             self.assetWriter.finishWriting {
                 DispatchQueue.main.sync {
-                    self.completionBlock?(ImageToVideoGenerator.fileURL)
+                    let fileURL = URL(fileURLWithPath: self.outputFilePath)
+                    self.completionBlock?(fileURL)
                 }
             }
         }
