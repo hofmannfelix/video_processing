@@ -14,8 +14,9 @@ public class SwiftVideoManipulationPlugin: NSObject, FlutterPlugin {
     if call.method == "generateVideo" {
         if let args = call.arguments as? [AnyObject],
             let paths = args[0] as? [String],
-            let fps = args[1] as? Int,
-            let speed = args[2] as? Double {
+            let filename = args[1] as? [String],
+            let fps = args[2] as? Int,
+            let speed = args[3] as? Double {
             VideoManipulation.generateVideo(assetPaths: paths, outputFps: fps, outputSpeed: speed) { url in
                 result(url?.relativePath)
             }

@@ -11,7 +11,7 @@ class VideoManipulation {
     return version;
   }
 
-  static Future<String> generateVideo(List<String> paths, int fps, double speed) async {
-    return await _channel.invokeMethod('generateVideo', [paths, fps, speed]);
+  static Future<String> generateVideo(List<String> paths, String filename, int fps, double speed) async {
+    return await _channel.invokeMethod('generateVideo', [paths, filename, fps, speed]);
   }
 }

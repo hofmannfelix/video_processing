@@ -30,7 +30,7 @@ class _MyAppState extends State<MyApp> {
       platformVersion = 'Failed to get platform version.';
     }
 
-    final vidPath = await VideoManipulation.generateVideo(["Test"], 30, 2);
+    final vidPath = await VideoManipulation.generateVideo(["Test"], "", 30, 2);
     print("Generated video at " + vidPath);
 
     // If the widget was removed from the tree while the asynchronous platform
