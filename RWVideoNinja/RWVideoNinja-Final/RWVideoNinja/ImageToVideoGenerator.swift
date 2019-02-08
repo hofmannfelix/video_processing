@@ -22,7 +22,7 @@ class ImageToVideoGenerator {
         return
       }
     }
-    let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecType.jpeg, //AVVideoCodecH264,
+    let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecJPEG, //AVVideoCodecH264,
       AVVideoWidthKey: Int(frameProvider.frameSize.width),
       AVVideoHeightKey: Int(frameProvider.frameSize.height)]
     self.assetWriter = try! AVAssetWriter(url: ImageToVideoGenerator.fileURL, fileType: .mov)
