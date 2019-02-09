@@ -35,6 +35,7 @@ private class VideoManipulation {
     static func generateVideo(assetPaths: [String], outputFilename: String, outputFps: Int, outputSpeed: Double, completion: @escaping (URL?) -> ()) {
         let isImg: (String) -> Bool = { $0.contains(".jpg") || $0.contains(".png") }
         let providers = assetPaths
+            .filter({ !$0.isEmpty })
             .map { path -> FrameProvider? in
                 return isImg(path.lowercased())
                     ? FileFrameProvider(filesPath: path)
@@ -172,8 +173,8 @@ private class BufferGenerator {
         let context = CGContext(data: pxdata, width: width, height: height, bitsPerComponent: 8, bytesPerRow: CVPixelBufferGetBytesPerRow(pxbuffer!), space: rgbColorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue)
         assert(context != nil, "context is nil")
         
-        context!.clear(rect)
         context!.concatenate(CGAffineTransform.identity)
+        //TODO: CGContext caching issue? There appears to be a memory leak or bad caching when drawing multiple times into context
         cgImages.forEach { cgImage in
             if let img = cgImage {
                 context!.draw(img, in: rect)
@@ -194,6 +195,7 @@ private protocol FrameProvider {
 }
 
 private class BufferedFrameProvider: FrameProvider {
+    let maxBufferSize = 10
     let frameSize: CGSize
     var totalFrames: Int //Can decrease depending on errornous read frames
     var frameIndex: Int = 0
@@ -227,10 +229,11 @@ private class BufferedFrameProvider: FrameProvider {
     }
     
     func pushFrame(frame: CGImage?) {
+        while frames.count > maxBufferSize {}
         if let frame = frame {
             DispatchQueue.main.async {
                 self.frames.append(frame)
-                print("Extracted next frame")
+                print("Extracted next frame, buffered frames now: ", self.frames.count)
             }
         } else {
             totalFrames -= 1
