@@ -76,12 +76,7 @@ private class VideoManipulation {
         
         let frameProvider = BufferedFrameProvider(totalFrames: sampleCounts, frameSize: frameSize)
         generator.generateCGImagesAsynchronously(forTimes: frameForTimes, completionHandler: { requestedTime, image, actualTime, result, error in
-            if let frame = image {
-                frameProvider.pushFrame(frame: frame)
-                
-                let index = (requestedTime.value as Int64)/Int64(step)
-                print(index, requestedTime.seconds, requestedTime.value, actualTime.value)
-            }
+            frameProvider.pushFrame(frame: image)
         })
         return frameProvider
     }
@@ -106,12 +101,11 @@ private class ImageToVideoGenerator {
         filename = outputFilename
         if(FileManager.default.fileExists(atPath: outputFilePath)) {
             guard (try? FileManager.default.removeItem(atPath: outputFilePath)) != nil else {
-                print("remove path failed")
                 completionBlock?(nil)
                 return
             }
         }
-        let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecJPEG, //AVVideoCodecH264,
+        let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecH264,
             AVVideoWidthKey: Int(frameProvider.frameSize.width),
             AVVideoHeightKey: Int(frameProvider.frameSize.height)]
         let outputFileUrl = URL(fileURLWithPath: outputFilePath)
@@ -201,7 +195,7 @@ private protocol FrameProvider {
 
 private class BufferedFrameProvider: FrameProvider {
     let frameSize: CGSize
-    let totalFrames: Int
+    var totalFrames: Int //Can decrease depending on errornous read frames
     var frameIndex: Int = 0
     var frames = [CGImage]()
     var currentFrame: CGImage? = nil
@@ -221,7 +215,7 @@ private class BufferedFrameProvider: FrameProvider {
             DispatchQueue.main.async {
                 self.currentFrame = self.frames.removeFirst()
                 self.frameIndex += 1
-                print("read frame with index \(self.frameIndex)")
+                print("Read frame with index \(self.frameIndex)")
             }
             while currentFrame == nil {}
         }
@@ -232,10 +226,14 @@ private class BufferedFrameProvider: FrameProvider {
         return BufferGenerator.newPixelBufferFrom(cgImage: nextFrame)
     }
     
-    func pushFrame(frame: CGImage) {
-        DispatchQueue.main.async {
-            self.frames.append(frame)
-            print("pushed new frame")
+    func pushFrame(frame: CGImage?) {
+        if let frame = frame {
+            DispatchQueue.main.async {
+                self.frames.append(frame)
+                print("Extracted next frame")
+            }
+        } else {
+            totalFrames -= 1
         }
     }
 }
@@ -292,17 +290,19 @@ private class MixedFrameProvider: FrameProvider {
     let frameProvider: [FrameProvider]
     let maxFrameProvider: FrameProvider?
     var frameForIndex: [(Int, CGImage?)]
-    let totalFrames: Int
     let frameSize: CGSize
     
     init(provider: [FrameProvider]) {
         frameProvider = provider
         frameForIndex = provider.map({ _ in return (-1, nil) })
         maxFrameProvider = provider.max(by: { $0.totalFrames < $1.totalFrames })
-        totalFrames = maxFrameProvider?.totalFrames ?? 0
         let width = provider.max(by: { $0.frameSize.width < $1.frameSize.width })?.frameSize.width ?? 0
         let height = provider.max(by: { $0.frameSize.height < $1.frameSize.height })?.frameSize.height ?? 0
         frameSize = CGSize(width: width, height: height)
+    }
+    
+    var totalFrames: Int {
+        return maxFrameProvider?.totalFrames ?? 0
     }
     
     var frameIndex: Int {
