@@ -54,16 +54,13 @@ private class VideoManipulation {
     static func generateVideoFromFrames(with frameProvider: FrameProvider, outputFilename: String, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
         let frameRate = CMTimeMake(1, Int32(Double(60*fps/60)))
         let generator = ImageToVideoGenerator(frameProvider: frameProvider, outputFilename: outputFilename, frameRate: frameRate, completionBlock: completion)
-        generator.startGeneration()
+        generator.startGenerating()
     }
     
     static func generateImages(filePath: String, fps: Int, speed: Double) -> BufferedFrameProvider? {
         let fileUrl = URL(fileURLWithPath: filePath)
         let asset = AVURLAsset(url: fileUrl, options: nil)
         let videoDuration = asset.duration
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.requestedTimeToleranceAfter = kCMTimeZero
-        generator.requestedTimeToleranceBefore = kCMTimeZero
         
         guard let frameSize = asset.tracks(withMediaType: .video).first?.naturalSize else { return nil }
         var frameForTimes = [NSValue]()
@@ -74,12 +71,7 @@ private class VideoManipulation {
             let cmTime = CMTimeMake(Int64(i * step), Int32(videoDuration.timescale))
             frameForTimes.append(NSValue(time: cmTime))
         }
-        
-        let frameProvider = BufferedFrameProvider(totalFrames: sampleCounts, frameSize: frameSize)
-        generator.generateCGImagesAsynchronously(forTimes: frameForTimes, completionHandler: { requestedTime, image, actualTime, result, error in
-            frameProvider.pushFrame(frame: image)
-        })
-        return frameProvider
+        return BufferedFrameProvider(totalFrames: sampleCounts, frameSize: frameSize, asset: asset, frameTimestamps: frameForTimes)
     }
 }
 
@@ -107,8 +99,8 @@ private class ImageToVideoGenerator {
             }
         }
         let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecH264,
-            AVVideoWidthKey: Int(frameProvider.frameSize.width),
-            AVVideoHeightKey: Int(frameProvider.frameSize.height)]
+                                           AVVideoWidthKey: Int(frameProvider.frameSize.width),
+                                           AVVideoHeightKey: Int(frameProvider.frameSize.height)]
         let outputFileUrl = URL(fileURLWithPath: outputFilePath)
         assetWriter = try! AVAssetWriter(url: outputFileUrl, fileType: .mov)
         writeInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
@@ -121,7 +113,7 @@ private class ImageToVideoGenerator {
         self.completionBlock = completionBlock
     }
     
-    func startGeneration() {
+    func startGenerating() {
         self.assetWriter.startWriting()
         self.assetWriter.startSession(atSourceTime: kCMTimeZero)
         var i = 0
@@ -174,7 +166,6 @@ private class BufferGenerator {
         assert(context != nil, "context is nil")
         
         context!.concatenate(CGAffineTransform.identity)
-        //TODO: CGContext caching issue? There appears to be a memory leak or bad caching when drawing multiple times into context
         cgImages.forEach { cgImage in
             if let img = cgImage {
                 context!.draw(img, in: rect)
@@ -195,16 +186,24 @@ private protocol FrameProvider {
 }
 
 private class BufferedFrameProvider: FrameProvider {
-    let maxBufferSize = 10
+    let minBufferSize: Int = 5
+    let maxBufferSize: Int = 30
+    let asset: AVAsset
+    var generator: AVAssetImageGenerator?
+    var readFrames: Int = 0
+    var frameTimestamps: [NSValue]
+    var isGeneratorReading: Bool = false
     let frameSize: CGSize
     var totalFrames: Int //Can decrease depending on errornous read frames
     var frameIndex: Int = 0
     var frames = [CGImage]()
     var currentFrame: CGImage? = nil
     
-    init(totalFrames: Int, frameSize: CGSize) {
+    init(totalFrames: Int, frameSize: CGSize, asset: AVAsset, frameTimestamps: [NSValue]) {
+        self.frameTimestamps = frameTimestamps
         self.totalFrames = totalFrames
         self.frameSize = frameSize
+        self.asset = asset
     }
     
     var hasFrames: Bool {
@@ -217,9 +216,17 @@ private class BufferedFrameProvider: FrameProvider {
             DispatchQueue.main.async {
                 self.currentFrame = self.frames.removeFirst()
                 self.frameIndex += 1
-                print("Read frame with index \(self.frameIndex)")
+                print("Read frame with index \(self.frameIndex)/\(self.totalFrames)")
             }
             while currentFrame == nil {}
+        }
+        if (self.frames.count < self.minBufferSize && !self.isGeneratorReading) {
+            self.isGeneratorReading = true
+            DispatchQueue.main.async {
+                self.startReadingFrames()
+                self.isGeneratorReading = true
+                print("Start frame extraction")
+            }
         }
         return currentFrame
     }
@@ -228,15 +235,34 @@ private class BufferedFrameProvider: FrameProvider {
         return BufferGenerator.newPixelBufferFrom(cgImage: nextFrame)
     }
     
-    func pushFrame(frame: CGImage?) {
-        while frames.count > maxBufferSize {}
-        if let frame = frame {
-            DispatchQueue.main.async {
-                self.frames.append(frame)
-                print("Extracted next frame, buffered frames now: ", self.frames.count)
+    private func pushFrame(frame: CGImage) {
+        DispatchQueue.main.async {
+            self.frames.append(frame)
+            self.readFrames += 1
+            if self.frames.count > self.maxBufferSize && self.isGeneratorReading {
+                self.generator?.cancelAllCGImageGeneration()
+                self.generator = nil
+                self.isGeneratorReading = false
+                print("Stop frame extraction")
             }
-        } else {
-            totalFrames -= 1
+            print("Extracted next frame, buffered frames: ", self.frames.count)
+        }
+    }
+    
+    private func startReadingFrames() {
+        let timestamps = Array(frameTimestamps[readFrames..<frameTimestamps.count])
+        if !timestamps.isEmpty {
+            self.generator = AVAssetImageGenerator(asset: asset)
+            self.generator!.requestedTimeToleranceAfter = kCMTimeZero
+            self.generator!.requestedTimeToleranceBefore = kCMTimeZero
+            self.generator!.generateCGImagesAsynchronously(forTimes: timestamps, completionHandler: { requestedTime, image, actualTime, result, error in
+                if let frame = image {
+                    self.pushFrame(frame: frame)
+                } else if let error = error {
+                    self.totalFrames -= 1
+                    print("Error reading frame: ", error.localizedDescription)
+                }
+            })
         }
     }
 }
