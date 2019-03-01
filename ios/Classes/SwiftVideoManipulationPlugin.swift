@@ -213,7 +213,7 @@ private class BufferedFrameProvider: FrameProvider {
     var nextFrame: CGImage? {
         currentFrame = nil
         if !frames.isEmpty {
-            DispatchQueue.main.async {
+            DispatchQueue.main.sync {
                 self.currentFrame = self.frames.removeFirst()
                 self.frameIndex += 1
                 print("Read frame with index \(self.frameIndex)/\(self.totalFrames)")
@@ -236,7 +236,7 @@ private class BufferedFrameProvider: FrameProvider {
     }
     
     private func pushFrame(frame: CGImage) {
-        DispatchQueue.main.async {
+        DispatchQueue.main.sync {
             self.frames.append(frame)
             self.readFrames += 1
             if self.frames.count > self.maxBufferSize && self.isGeneratorReading {
