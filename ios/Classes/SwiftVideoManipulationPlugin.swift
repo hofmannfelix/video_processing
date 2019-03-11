@@ -9,7 +9,7 @@ public class SwiftVideoManipulationPlugin: NSObject, FlutterPlugin {
     let instance = SwiftVideoManipulationPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
   }
-
+    
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     if call.method == "generateVideo" {
         if let args = call.arguments as? [AnyObject],
@@ -23,10 +23,6 @@ public class SwiftVideoManipulationPlugin: NSObject, FlutterPlugin {
         } else {
             result(nil)
         }
-    }
-    
-    else if call.method == "getPlatformVersion" {
-        result("iOS " + UIDevice.current.systemVersion)
     }
   }
 }
@@ -187,7 +183,8 @@ private protocol FrameProvider {
 
 private class BufferedFrameProvider: FrameProvider {
     let minBufferSize: Int = 5
-    let maxBufferSize: Int = 30
+    let maxBufferSize: Int = 20
+    var hasMemoryPressure: Bool = false
     let asset: AVAsset
     var generator: AVAssetImageGenerator?
     var readFrames: Int = 0
@@ -204,6 +201,16 @@ private class BufferedFrameProvider: FrameProvider {
         self.totalFrames = totalFrames
         self.frameSize = frameSize
         self.asset = asset
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(lowMemoryWarning),
+            name: .UIApplicationDidReceiveMemoryWarning,
+            object: nil)
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
     
     var hasFrames: Bool {
@@ -220,11 +227,12 @@ private class BufferedFrameProvider: FrameProvider {
             }
             while currentFrame == nil {}
         }
-        if (self.frames.count < self.minBufferSize && !self.isGeneratorReading) {
+        if (self.frames.count < self.minBufferSize || (self.frames.isEmpty && self.hasMemoryPressure)) && !self.isGeneratorReading {
             self.isGeneratorReading = true
             DispatchQueue.main.async {
                 self.startReadingFrames()
                 self.isGeneratorReading = true
+                self.hasMemoryPressure = false
                 print("Start frame extraction")
             }
         }
@@ -237,13 +245,11 @@ private class BufferedFrameProvider: FrameProvider {
     
     private func pushFrame(frame: CGImage) {
         DispatchQueue.main.sync {
-            self.frames.append(frame)
-            self.readFrames += 1
-            if self.frames.count > self.maxBufferSize && self.isGeneratorReading {
-                self.generator?.cancelAllCGImageGeneration()
-                self.generator = nil
-                self.isGeneratorReading = false
-                print("Stop frame extraction")
+            if (self.frames.count > self.maxBufferSize || hasMemoryPressure) && self.isGeneratorReading {
+                self.stopReadingFrames()
+            } else {
+                self.frames.append(frame)
+                self.readFrames += 1
             }
             print("Extracted next frame, buffered frames: ", self.frames.count)
         }
@@ -264,6 +270,22 @@ private class BufferedFrameProvider: FrameProvider {
                 }
             })
         }
+    }
+    
+    private func stopReadingFrames() {
+        let framesToRemoveCount = min(self.frames.count, maxBufferSize)
+        self.frames.removeLast(framesToRemoveCount)
+        self.readFrames -= framesToRemoveCount
+        self.generator?.cancelAllCGImageGeneration()
+        self.generator = nil
+        self.isGeneratorReading = false
+        print("Stop frame extraction")
+    }
+    
+    @objc private func lowMemoryWarning(notification: NSNotification) {
+        print("Memory pressure")
+        hasMemoryPressure = true
+        stopReadingFrames()
     }
 }
 
