@@ -273,9 +273,11 @@ private class BufferedFrameProvider: FrameProvider {
     }
     
     private func stopReadingFrames() {
-        let framesToRemoveCount = min(self.frames.count, maxBufferSize)
-        self.frames.removeLast(framesToRemoveCount)
-        self.readFrames -= framesToRemoveCount
+        if hasMemoryPressure {
+            let framesToRemoveCount = min(self.frames.count, maxBufferSize)
+            self.frames.removeLast(framesToRemoveCount)
+            self.readFrames -= framesToRemoveCount
+        }
         self.generator?.cancelAllCGImageGeneration()
         self.generator = nil
         self.isGeneratorReading = false
