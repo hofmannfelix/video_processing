@@ -1,6 +1,6 @@
 name: video_manipulation
 description: Flutter plugin for basic video manipulation.
-version: 0.1.5
+version: 0.1.6
 homepage: "https://github.com/hofmannfelix/video_manipulation"
 authors:
   - Felix Hofmann <hofmannfelix@ymail.com>
