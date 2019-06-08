@@ -2,15 +2,16 @@
 
 Demonstrates how to use the video_manipulation plugin.
 
-## Getting Started
+```
+void generateTimelapse() async {
+    final speed = 6.0;
+    final framerate = 60;
+    final inputFilename = "clock.mp4";
+    final outputFilename = "clock-processed.mp4";
+    final docDir = (await getApplicationDocumentsDirectory()).path;
+    final inputFilepath = docDir + "/" + inputFilename;
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.io/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.io/docs/cookbook)
-
-For help getting started with Flutter, view our 
-[online documentation](https://flutter.io/docs), which offers tutorials, 
-samples, guidance on mobile development, and a full API reference.
+    _outputFilepath =
+        await VideoManipulation.generateVideo([inputFilepath], outputFilename, framerate, speed);
+}
+```

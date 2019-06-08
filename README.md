@@ -2,10 +2,10 @@
 
 A library for manipulating videos.
 This library has the following features
- - Changing a videos framerate
- - Changing a videos speed/duration
- - Adding still frames to an existing video, e.g. watermarks
- - Generate videos from images
+ * Changing a videos framerate
+ * Changing a videos speed/duration
+ * Adding still frames to an existing video, e.g. watermarks
+ * Generate videos from images
 
  NOTE: Currently supports iOS only
 
