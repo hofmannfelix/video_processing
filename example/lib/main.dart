@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart';
+import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
 import 'package:video_manipulation/video_manipulation.dart';
 
 void main() => runApp(MyApp());
@@ -20,7 +21,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeState extends State<HomeScreen> {
   bool _isGenerating = false;
-  String _inputAssetpath = "assets/clock.mp4";
+  String _inputAssetpath = "assets/filmedWithXcept.mp4";
   String _outputFilepath;
   Duration _generationTime = Duration.zero;
   String _infoText = "";
@@ -66,31 +67,49 @@ class _HomeState extends State<HomeScreen> {
       .push(MaterialPageRoute(builder: (_) => Player(videoUrl: _outputFilepath)));
 
   _generateTimelapse() async {
-    final speed = 6.0;
-    final framerate = 60;
-    final inputFilename = "clock.mp4";
+    final speed = 4.0;
+    final framerate = 30;
+    final inputFilename = "filmedWithXcept.mp4";
     final outputFilename = "clock-processed.mp4";
     final inputAsset = "assets/$inputFilename";
     final docDir = (await getApplicationDocumentsDirectory()).path;
+    final inputFilepath = join(docDir, inputFilename);
+    final outputPath = "$docDir/$outputFilename.mp4";
 
     _infoText = "Generating Video with $speed x speed...";
     setState(() => _isGenerating = true);
 
     print("Clean up documents directory");
-    if (await File(docDir + inputFilename).exists()) await File(docDir + inputFilename).delete();
-    if (await File(docDir + outputFilename).exists())
-      await File(docDir + outputFilename).delete();
+    if (await File(inputFilepath).exists())
+      await File(inputFilepath).delete();
+    if (await File(outputPath).exists())
+      await File(outputPath).delete();
 
     print("Copy input file to documents directory");
     final data = await rootBundle.load(inputAsset);
     final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    final inputFilepath = join(docDir, inputFilename);
     await File(inputFilepath).writeAsBytes(bytes);
 
     print("Start generating video");
     final start = DateTime.now();
-    _outputFilepath =
-        await VideoManipulation.generateVideo([inputFilepath], outputFilename, framerate, speed);
+//    _outputFilepath =
+//        await VideoManipulation.generateVideo([inputFilepath], outputFilename, framerate, speed);
+
+    //ffmpeg test
+    final ffmpeg = new FlutterFFmpeg();
+    var args = [
+      "-i",
+      '$inputFilepath',
+      '-r',
+      '$framerate',
+      '-filter:v',
+      'setpts=${1.0 / speed}*PTS',
+      '-an',
+      '$outputPath'
+    ];
+    await ffmpeg.executeWithArguments(args);
+    _outputFilepath = outputPath;
+
     _generationTime = DateTime.now().difference(start);
 
     print("Completed video generation");
