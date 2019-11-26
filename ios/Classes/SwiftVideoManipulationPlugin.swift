@@ -94,11 +94,13 @@ private class ImageToVideoGenerator {
                 return
             }
         }
+        //TODO: Specify compression settings
+        //      https://developer.apple.com/documentation/avfoundation/avassetwriterinput/video_settings_dictionaries
         let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecH264,
                                            AVVideoWidthKey: Int(frameProvider.frameSize.width),
                                            AVVideoHeightKey: Int(frameProvider.frameSize.height)]
         let outputFileUrl = URL(fileURLWithPath: outputFilePath)
-        assetWriter = try! AVAssetWriter(url: outputFileUrl, fileType: .mov)
+        assetWriter = try! AVAssetWriter(url: outputFileUrl, fileType: .mp4)
         writeInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
         assert(assetWriter.canAdd(writeInput), "add failed")
         assetWriter.add(writeInput)
