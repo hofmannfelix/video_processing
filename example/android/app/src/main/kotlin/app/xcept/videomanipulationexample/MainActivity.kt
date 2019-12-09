@@ -1,4 +1,4 @@
-package app.xcept.videomanipulationexample
+package app.xcept.videoprocessingexample
 
 import android.os.Bundle
 

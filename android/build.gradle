@@ -1,4 +1,4 @@
-group 'app.xcept.videomanipulation'
+group 'app.xcept.videoprocessing'
 version '1.0-SNAPSHOT'
 
 buildscript {

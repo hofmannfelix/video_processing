@@ -1,4 +1,4 @@
-# video_manipulation
+# video_processing
 
 A library for manipulating videos.
 This library has the following features
@@ -13,11 +13,11 @@ This library has the following features
 
 Simply add the following line to your pubspec.yaml file:
 
-`video_manipulation: ^0.1.7`
+`video_processing: ^0.1.7`
 
 ## Usage
 
-The plugin currently has one static method for all video manipulation: `.generateVideo(List<String> paths, String filename, int fps, double speed)`.
+The plugin currently has one static method for all video processing: `.generateVideo(List<String> paths, String filename, int fps, double speed)`.
 
 Parameters
 `paths` list of input file paths. Can be images (.jpg or .png) or video files (.mp4) that are used to generate the new video. E.g.: `["documents/input.mp4", "documents/watermark.jpg]` - in this case the plugin would add the "watermark.jpg" image to every frame of the "input.mp4" video. The image would be scaled to have the same size as the "input.mp4" video.

@@ -1,4 +1,4 @@
-package app.xcept.videomanipulation
+package app.xcept.videoprocessing
 
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -6,12 +6,12 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
 
-class VideoManipulationPlugin : MethodCallHandler {
+class VideoProcessingPlugin : MethodCallHandler {
     companion object {
         @JvmStatic
         fun registerWith(registrar: Registrar) {
-            val channel = MethodChannel(registrar.messenger(), "video_manipulation")
-            channel.setMethodCallHandler(VideoManipulationPlugin())
+            val channel = MethodChannel(registrar.messenger(), "video_processing")
+            channel.setMethodCallHandler(VideoProcessingPlugin())
         }
     }
 
@@ -28,7 +28,7 @@ class VideoManipulationPlugin : MethodCallHandler {
 
 typealias Callback = () -> Boolean
 
-interface IVideoManipulation {
+interface IVideoProcessing {
 
     fun generateVideo(assetPaths: Collection<String>, outputFilename: String, outputFps: Int, outputSpeed: Double, completion: Callback);
 }

@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
-class VideoManipulation {
+class VideoProcessing {
   static const MethodChannel _channel =
-      const MethodChannel('video_manipulation');
+      const MethodChannel('video_processing');
 
   static Future<String> get platformVersion async {
     final String version = await _channel.invokeMethod('getPlatformVersion');

@@ -1,5 +1,5 @@
-name: video_manipulation_example
-description: Demonstrates how to use the video_manipulation plugin.
+name: video_processing_example
+description: Demonstrates how to use the video_processing plugin.
 publish_to: 'none'
 
 environment:
@@ -17,7 +17,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  video_manipulation:
+  video_processing:
     path: ../
 
 flutter:

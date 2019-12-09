@@ -1,6 +1,6 @@
-# video_manipulation_example
+# video_processing_example
 
-Demonstrates how to use the video_manipulation plugin.
+Demonstrates how to use the video_processing plugin.
 
 ```
 void generateTimelapse() async {
@@ -12,6 +12,6 @@ void generateTimelapse() async {
     final inputFilepath = docDir + "/" + inputFilename;
 
     _outputFilepath =
-        await VideoManipulation.generateVideo([inputFilepath], outputFilename, framerate, speed);
+        await VideoProcessing.generateVideo([inputFilepath], outputFilename, framerate, speed);
 }
 ```

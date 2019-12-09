@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart';
-import 'package:video_manipulation/video_manipulation.dart';
+import 'package:video_processing/video_processing.dart';
 
 void main() => runApp(MyApp());
 
@@ -90,7 +90,7 @@ class _HomeState extends State<HomeScreen> {
     print("Start generating video");
     final start = DateTime.now();
     _outputFilepath =
-        await VideoManipulation.generateVideo([inputFilepath], outputFilename, framerate, speed);
+        await VideoProcessing.generateVideo([inputFilepath], outputFilename, framerate, speed);
     _generationTime = DateTime.now().difference(start);
 
     print("Completed video generation");

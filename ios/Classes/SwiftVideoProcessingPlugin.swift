@@ -3,10 +3,10 @@ import UIKit
 import AVFoundation
 import MobileCoreServices
 
-public class SwiftVideoManipulationPlugin: NSObject, FlutterPlugin {
+public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
-    let channel = FlutterMethodChannel(name: "video_manipulation", binaryMessenger: registrar.messenger())
-    let instance = SwiftVideoManipulationPlugin()
+    let channel = FlutterMethodChannel(name: "video_processing", binaryMessenger: registrar.messenger())
+    let instance = SwiftVideoProcessingPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
   }
     
@@ -17,7 +17,7 @@ public class SwiftVideoManipulationPlugin: NSObject, FlutterPlugin {
             let filename = args[1] as? String,
             let fps = args[2] as? Int,
             let speed = args[3] as? Double {
-            VideoManipulation.generateVideo(assetPaths: paths, outputFilename: filename, outputFps: fps, outputSpeed: speed) { url in
+            VideoProcessing.generateVideo(assetPaths: paths, outputFilename: filename, outputFps: fps, outputSpeed: speed) { url in
                 result(url?.relativePath)
             }
         } else {
@@ -27,7 +27,7 @@ public class SwiftVideoManipulationPlugin: NSObject, FlutterPlugin {
   }
 }
 
-private class VideoManipulation {
+private class VideoProcessing {
     static func generateVideo(assetPaths: [String], outputFilename: String, outputFps: Int, outputSpeed: Double, completion: @escaping (URL?) -> ()) {
         let isImg: (String) -> Bool = { $0.contains(".jpg") || $0.contains(".png") }
         let providers = assetPaths
