@@ -24,6 +24,13 @@ class _HomeState extends State<HomeScreen> {
   String _outputFilepath;
   Duration _generationTime = Duration.zero;
   String _infoText = "";
+  double _progress = 0.0;
+
+  @override
+  void initState() {
+    VideoProcessing.progressStream.listen((p) => setState(() => _progress = p));
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +59,8 @@ class _HomeState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 40),
                 child: Text(_infoText),
               ),
+              if (_progress > 0.0)
+                Text("Progress: ${(100 * _progress).floor()}%")
             ],
           ),
         ),

@@ -4,13 +4,15 @@ import AVFoundation
 import MobileCoreServices
 
 public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
-  public static func register(with registrar: FlutterPluginRegistrar) {
-    let channel = FlutterMethodChannel(name: "video_processing", binaryMessenger: registrar.messenger())
+    public static var _channel: FlutterMethodChannel?;
+
+    public static func register(with registrar: FlutterPluginRegistrar) {
+    _channel = FlutterMethodChannel(name: "video_processing", binaryMessenger: registrar.messenger())
     let instance = SwiftVideoProcessingPlugin()
-    registrar.addMethodCallDelegate(instance, channel: channel)
-  }
-    
-  public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    registrar.addMethodCallDelegate(instance, channel: _channel!)
+    }
+
+    public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     if call.method == "generateVideo" {
         if let args = call.arguments as? [AnyObject],
             let paths = args[0] as? [String],
@@ -24,7 +26,11 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
             result(nil)
         }
     }
-  }
+    }
+    
+    public static func sendProgressForCurrentVideoProcess(progress: Double) {
+        _channel?.invokeMethod("updateProgress", arguments: ["progress": progress])
+    }
 }
 
 private class VideoProcessing {
@@ -130,6 +136,9 @@ private class ImageToVideoGenerator {
                         self.bufferAdapter.append(buffer, withPresentationTime: presentTime)
                     }
                     i += 1
+                    if self.frameProvider.totalFrames > 0 {
+                        SwiftVideoProcessingPlugin.sendProgressForCurrentVideoProcess(progress: Double(self.frameProvider.frameIndex) / Double(self.frameProvider.totalFrames))
+                    }
                 }
             }
             self.writeInput.markAsFinished()
