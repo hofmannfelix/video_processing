@@ -76,6 +76,7 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
 }
 
 class VSVideoSpeeder: NSObject {
+    let MaxAudioSpeed = 20.0
     
     /// Singleton instance of `VSVideoSpeeder`
     static var shared: VSVideoSpeeder = {
@@ -85,20 +86,19 @@ class VSVideoSpeeder: NSObject {
     func scaleAsset(inputUrl: URL, outputFileUrl: URL, settings: [VideoProcessSettings], completion: @escaping (_ exporter: AVAssetExportSession?) -> Void) {
         let asset = AVAsset(url: inputUrl)
         let timeRange = CMTimeRangeMake(kCMTimeZero, asset.duration)
-        
-        /// Video track
         let videoTracks = asset.tracks(withMediaType: AVMediaType.video)
         if videoTracks.isEmpty {
             completion(nil)
             return
         }
         do {
+            /// Video track
             let videoTrack = videoTracks.first!
             let mixComposition = AVMutableComposition()
             let compositionVideoTrack = mixComposition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: kCMPersistentTrackID_Invalid)
             try compositionVideoTrack?.insertTimeRange(timeRange, of: videoTrack, at: kCMTimeZero)
             
-            /// Audio Tracks
+            /// Audio Track
             let audioTracks = asset.tracks(withMediaType: AVMediaType.audio)
             let audioTrack = audioTracks.first
             var compositionAudioTrack: AVMutableCompositionTrack?
@@ -108,23 +108,26 @@ class VSVideoSpeeder: NSObject {
             try? compositionAudioTrack?.insertTimeRange(timeRange, of: audioTrack!, at: kCMTimeZero)
             
             /// Get the scaled video duration
-            //TODO: START - make multiple scaledVideoDurations
             settings.forEach({ settings in
                 let sectionDuration = settings.end - settings.start
-                let timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(sectionDuration, 1000))
-                let scaledVideoDuration = CMTimeMake(sectionDuration / Int64(settings.speed), 1000)
-                
-                compositionVideoTrack?.scaleTimeRange(timeRange, toDuration: scaledVideoDuration)
-                compositionAudioTrack?.scaleTimeRange(timeRange, toDuration: scaledVideoDuration)
+                var timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(sectionDuration, 1000))
+                let scaledDuration = CMTimeMake(Int64(Double(sectionDuration) / settings.speed), 1000)
+                compositionVideoTrack?.scaleTimeRange(timeRange, toDuration: scaledDuration)
+
+                /// Speed up audio to max and remove remaining audio track to maintain the same length as the final video track
+                if settings.speed >= MaxAudioSpeed {
+                    let speedFactor = MaxAudioSpeed / settings.speed
+                    let fractionedDuration = Int64(Double(sectionDuration) * speedFactor)
+                    let cutOffStart = settings.start + Int64(Double(sectionDuration) * speedFactor)
+                    let cutOffDuration = Int64(Double(sectionDuration) * (1.0 - speedFactor))
+                    
+                    /// Cut of audio track fraction that wont be sped up
+                    timeRange = CMTimeRangeMake(CMTimeMake(cutOffStart, 1000), CMTimeMake(cutOffDuration, 1000))
+                    compositionAudioTrack?.removeTimeRange(timeRange)
+                    timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(fractionedDuration, 1000))
+                }
+                compositionAudioTrack?.scaleTimeRange(timeRange, toDuration: scaledDuration)
             })
-            
-            //            let timeRange = CMTimeRangeMake(kCMTimeZero, asset.duration)
-            //            let scaledVideoDuration = CMTimeMake(asset.duration.value / scale, asset.duration.timescale)
-            
-            //            try compositionVideoTrack?.insertTimeRange(timeRange, of: videoTrack, at: kCMTimeZero)
-            //            compositionVideoTrack?.scaleTimeRange(timeRange, toDuration: scaledVideoDuration)
-            //TODO: END
-            
             compositionVideoTrack?.preferredTransform = videoTrack.preferredTransform
             
             let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetMediumQuality)
