@@ -3,6 +3,18 @@ import UIKit
 import AVFoundation
 import MobileCoreServices
 
+public class VideoSectionSettings {
+    final let start: Int64
+    final var end: Int64
+    final var speed: Double
+    
+    init(start: Int64, end: Int64, speed: Double) {
+        self.start = start
+        self.end = end
+        self.speed = speed
+    }
+}
+
 public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
     public static var _channel: FlutterMethodChannel?;
     
@@ -13,6 +25,16 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        if call.method == "generateTimelapse" {
+            if let args = call.arguments as? [AnyObject],
+                let inputPath = args[0] as? String,
+                let outputPath = args[1] as? String,
+                let sectionSettings = args[2] as? [[AnyObject]] {
+                let sectionSpeedSettings = sectionSettings.map({VideoSectionSettings(start: Int64($0[0] as! Int), end: Int64($0[1] as! Int), speed: $0[2] as? Double ?? 1.0)})
+                
+                
+            }
+        }
         if call.method == "generateVideo" {
             if let args = call.arguments as? [AnyObject],
                 let paths = args[0] as? [String],
@@ -32,17 +54,19 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                 VSVideoSpeeder.shared.scaleAsset(fromURL: inputFileURL, with: outputFileURL, by: Int64(speed)) { (exporter) in
                     if let exporter = exporter {
                         switch exporter.status {
-                        case .failed: do {
+                        case .failed:
                             print(exporter.error?.localizedDescription ?? "Error in exporting..")
-                            }
-                        case .completed: do {
+                            break
+                        case .completed:
                             print("Scaled video has been generated successfully!")
                             printFileSizeInMB(filePath: outputFileURL.relativePath)
                             result(outputFileURL.relativePath)
-                            }
+                            break
                         case .unknown: break
                         case .waiting: break
-                        case .exporting: break
+                        case .exporting:
+                            //TODO: status never called so set up timer that update progress with SwiftVideoProcessingPlugin.sendProgressForCurrentVideoProcess(progress: Double(exporter.progress))
+                            break
                         case .cancelled: break
                         }
                     }
@@ -83,6 +107,7 @@ class VSVideoSpeeder: NSObject {
         }
         
         /// Get the scaled video duration
+        //TODO: make multiple scaledVideoDurations
         let scaledVideoDuration = CMTimeMake(asset.duration.value / scale, asset.duration.timescale)
         let timeRange = CMTimeRangeMake(kCMTimeZero, asset.duration)
         
@@ -114,14 +139,13 @@ class VSVideoSpeeder: NSObject {
             /// Keep original transformation
             compositionVideoTrack?.preferredTransform = videoTrack.preferredTransform
             
-            let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetMediumQuality)
+            let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetHighestQuality)
             exporter?.outputURL = outputFileUrl
-            exporter?.outputFileType = AVFileType.mov
+            exporter?.outputFileType = AVFileType.mp4
             exporter?.shouldOptimizeForNetworkUse = true
             exporter?.exportAsynchronously(completionHandler: {
                 completion(exporter)
             })
-            
         } catch let error {
             print(error.localizedDescription)
             completion(nil)
