@@ -20,17 +20,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeState extends State<HomeScreen> {
   bool _isGenerating = false;
-  String _inputAssetpath = "assets/clock.mp4";
+  String _inputAssetpath = "assets/test.mp4";
   String _outputFilepath;
   Duration _generationTime = Duration.zero;
   String _infoText = "";
   double _progress = 0.0;
-
-  @override
-  void initState() {
-    VideoProcessing.progressStream.listen((p) => setState(() => _progress = p));
-    super.initState();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,8 +53,7 @@ class _HomeState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 40),
                 child: Text(_infoText),
               ),
-              if (_progress > 0.0)
-                Text("Progress: ${(100 * _progress).floor()}%")
+              if (_progress > 0.0) Text("Progress: ${(100 * _progress).floor()}%")
             ],
           ),
         ),
@@ -75,31 +68,37 @@ class _HomeState extends State<HomeScreen> {
       .push(MaterialPageRoute(builder: (_) => Player(videoUrl: _outputFilepath)));
 
   _generateTimelapse() async {
-    final speed = 6.0;
-    final framerate = 60;
-    final inputFilename = "clock.mp4";
-    final outputFilename = "clock-processed.mp4";
+    final inputFilename = "test.mp4";
+    final outputFilename = "test-processed.mp4";
     final inputAsset = "assets/$inputFilename";
     final docDir = (await getApplicationDocumentsDirectory()).path;
+    final inputFilepath = join(docDir, inputFilename);
+    final outputFilepath = join(docDir, outputFilename);
 
-    _infoText = "Generating Video with $speed x speed...";
+    _infoText = "Generating Video with different speeds...";
     setState(() => _isGenerating = true);
 
     print("Clean up documents directory");
-    if (await File(docDir + inputFilename).exists()) await File(docDir + inputFilename).delete();
-    if (await File(docDir + outputFilename).exists())
-      await File(docDir + outputFilename).delete();
+    if (await File(inputFilepath).exists()) await File(inputFilepath).delete();
+    if (await File(outputFilepath).exists()) await File(outputFilepath).delete();
 
     print("Copy input file to documents directory");
     final data = await rootBundle.load(inputAsset);
     final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    final inputFilepath = join(docDir, inputFilename);
     await File(inputFilepath).writeAsBytes(bytes);
 
     print("Start generating video");
     final start = DateTime.now();
-    _outputFilepath =
-        await VideoProcessing.generateVideo([inputFilepath], outputFilename, framerate, speed);
+    final settings = [
+      VideoProcessSettings(start: Duration(seconds: 30), end: Duration(seconds: 57), speed: 2.0),
+      VideoProcessSettings(start: Duration(seconds: 10), end: Duration(seconds: 20), speed: 4.0),
+    ];
+
+    _outputFilepath = await VideoProcessing.processVideo(
+        inputPath: inputFilepath, outputPath: outputFilepath, settings: settings);
+//    VideoProcessing.progressStream(taskId: _outputFilepath)
+//        .listen((p) => setState(() => _progress = p));
+
     _generationTime = DateTime.now().difference(start);
 
     print("Completed video generation");
@@ -146,15 +145,25 @@ class PlayerState extends State<Player> {
   }
 
   Widget _loadedContentWidget() {
-    return Container(
-      width: widget.width,
-      height: widget.height,
-      child: SizedBox(
-        child: AspectRatio(
-          aspectRatio: _controller.value.aspectRatio,
-          child: VideoPlayer(_controller),
+    return Stack(
+      children: [
+        Container(
+          width: widget.width,
+          height: widget.height,
+          child: Center(
+            child: SizedBox(
+              child: AspectRatio(
+                aspectRatio: _controller.value.aspectRatio,
+                child: VideoPlayer(_controller),
+              ),
+            ),
+          ),
         ),
-      ),
+        Container(
+          width: widget.width,
+          child: VideoProgressIndicator(_controller, allowScrubbing: true),
+        ),
+      ],
     );
   }
 

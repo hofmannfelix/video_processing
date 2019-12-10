@@ -3,7 +3,7 @@ import UIKit
 import AVFoundation
 import MobileCoreServices
 
-public class VideoSectionSettings {
+public class VideoProcessSettings {
     final let start: Int64
     final var end: Int64
     final var speed: Double
@@ -25,42 +25,31 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        if call.method == "generateTimelapse" {
+        if call.method == "processVideo" {
             if let args = call.arguments as? [AnyObject],
                 let inputPath = args[0] as? String,
                 let outputPath = args[1] as? String,
-                let sectionSettings = args[2] as? [[AnyObject]] {
-                let sectionSpeedSettings = sectionSettings.map({VideoSectionSettings(start: Int64($0[0] as! Int), end: Int64($0[1] as! Int), speed: $0[2] as? Double ?? 1.0)})
+                let settingsMap = args[2] as? [[String: AnyObject]] {
+                let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as! Int), end: Int64($0["end"] as! Int), speed: $0["speed"] as? Double ?? 1.0)})
                 
-                
-            }
-        }
-        if call.method == "generateVideo" {
-            if let args = call.arguments as? [AnyObject],
-                let paths = args[0] as? [String],
-                let filename = args[1] as? String,
-                let fps = args[2] as? Int,
-                let speed = args[3] as? Double {
-                
-                // Initialize Exporter now
-                let docDir = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first!
-                let path = docDir + "/" + filename + ".mp4"
-                let inputFileURL = URL(fileURLWithPath: paths.first!)
-                let outputFileURL = URL(fileURLWithPath: path)
+                //TODO: should be done by caller in flutter
+                let inputFileURL = URL(fileURLWithPath: inputPath)
+                let outputFileURL = URL(fileURLWithPath: outputPath)
                 if FileManager.default.isDeletableFile(atPath: outputFileURL.relativePath) {
                     try? FileManager.default.removeItem(at: outputFileURL)
                 }
                 
-                VSVideoSpeeder.shared.scaleAsset(fromURL: inputFileURL, with: outputFileURL, by: Int64(speed)) { (exporter) in
+                VSVideoSpeeder.shared.scaleAsset(inputUrl: inputFileURL, outputFileUrl: outputFileURL, settings: settings) { (exporter) in
                     if let exporter = exporter {
                         switch exporter.status {
                         case .failed:
                             print(exporter.error?.localizedDescription ?? "Error in exporting..")
+                            //send error to progress method
                             break
                         case .completed:
                             print("Scaled video has been generated successfully!")
                             printFileSizeInMB(filePath: outputFileURL.relativePath)
-                            result(outputFileURL.relativePath)
+                            result(outputFileURL.relativePath) //TODO: should return before calling export
                             break
                         case .unknown: break
                         case .waiting: break
@@ -93,53 +82,52 @@ class VSVideoSpeeder: NSObject {
         return VSVideoSpeeder()
     }()
     
-    func scaleAsset(fromURL url: URL, with outputFileUrl: URL, by scale: Int64, completion: @escaping (_ exporter: AVAssetExportSession?) -> Void) {
-        
-        /// Asset
-        let asset = AVAsset(url: url)
-        
-        /// Video Tracks
-        let videoTracks = asset.tracks(withMediaType: AVMediaType.video)
-        if videoTracks.count == 0 {
-            /// Can not find any video track
-            completion(nil)
-            return
-        }
-        
-        /// Get the scaled video duration
-        //TODO: make multiple scaledVideoDurations
-        let scaledVideoDuration = CMTimeMake(asset.duration.value / scale, asset.duration.timescale)
+    func scaleAsset(inputUrl: URL, outputFileUrl: URL, settings: [VideoProcessSettings], completion: @escaping (_ exporter: AVAssetExportSession?) -> Void) {
+        let asset = AVAsset(url: inputUrl)
         let timeRange = CMTimeRangeMake(kCMTimeZero, asset.duration)
         
         /// Video track
-        let videoTrack = videoTracks.first!
-        let mixComposition = AVMutableComposition()
-        let compositionVideoTrack = mixComposition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: kCMPersistentTrackID_Invalid)
-        
-        /// Audio Tracks
-        let audioTracks = asset.tracks(withMediaType: AVMediaType.audio)
-        if audioTracks.count > 0 {
-            /// Use audio if video contains the audio track
-            let compositionAudioTrack = mixComposition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: kCMPersistentTrackID_Invalid)
-            
-            /// Audio track
-            let audioTrack = audioTracks.first!
-            do {
-                try compositionAudioTrack?.insertTimeRange(timeRange, of: audioTrack, at: kCMTimeZero)
-                compositionAudioTrack?.scaleTimeRange(timeRange, toDuration: scaledVideoDuration)
-            } catch _ {
-                /// Ignore audio error
-            }
+        let videoTracks = asset.tracks(withMediaType: AVMediaType.video)
+        if videoTracks.isEmpty {
+            completion(nil)
+            return
         }
-        
         do {
+            let videoTrack = videoTracks.first!
+            let mixComposition = AVMutableComposition()
+            let compositionVideoTrack = mixComposition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: kCMPersistentTrackID_Invalid)
             try compositionVideoTrack?.insertTimeRange(timeRange, of: videoTrack, at: kCMTimeZero)
-            compositionVideoTrack?.scaleTimeRange(timeRange, toDuration: scaledVideoDuration)
             
-            /// Keep original transformation
+            /// Audio Tracks
+            let audioTracks = asset.tracks(withMediaType: AVMediaType.audio)
+            let audioTrack = audioTracks.first
+            var compositionAudioTrack: AVMutableCompositionTrack?
+            if !audioTracks.isEmpty {
+                compositionAudioTrack = mixComposition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+            }
+            try? compositionAudioTrack?.insertTimeRange(timeRange, of: audioTrack!, at: kCMTimeZero)
+            
+            /// Get the scaled video duration
+            //TODO: START - make multiple scaledVideoDurations
+            settings.forEach({ settings in
+                let sectionDuration = settings.end - settings.start
+                let timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(sectionDuration, 1000))
+                let scaledVideoDuration = CMTimeMake(sectionDuration / Int64(settings.speed), 1000)
+                
+                compositionVideoTrack?.scaleTimeRange(timeRange, toDuration: scaledVideoDuration)
+                compositionAudioTrack?.scaleTimeRange(timeRange, toDuration: scaledVideoDuration)
+            })
+            
+            //            let timeRange = CMTimeRangeMake(kCMTimeZero, asset.duration)
+            //            let scaledVideoDuration = CMTimeMake(asset.duration.value / scale, asset.duration.timescale)
+            
+            //            try compositionVideoTrack?.insertTimeRange(timeRange, of: videoTrack, at: kCMTimeZero)
+            //            compositionVideoTrack?.scaleTimeRange(timeRange, toDuration: scaledVideoDuration)
+            //TODO: END
+            
             compositionVideoTrack?.preferredTransform = videoTrack.preferredTransform
             
-            let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetHighestQuality)
+            let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetMediumQuality)
             exporter?.outputURL = outputFileUrl
             exporter?.outputFileType = AVFileType.mp4
             exporter?.shouldOptimizeForNetworkUse = true
