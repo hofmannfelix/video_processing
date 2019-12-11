@@ -32,13 +32,8 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                 let settingsMap = args[2] as? [[String: AnyObject]] {
                 let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as! Int), end: Int64($0["end"] as! Int), speed: $0["speed"] as? Double ?? 1.0)})
                 
-                //TODO: should be done by caller in flutter
                 let inputFileURL = URL(fileURLWithPath: inputPath)
                 let outputFileURL = URL(fileURLWithPath: outputPath)
-                if FileManager.default.isDeletableFile(atPath: outputFileURL.relativePath) {
-                    try? FileManager.default.removeItem(at: outputFileURL)
-                }
-                
                 VSVideoSpeeder.shared.scaleAsset(inputUrl: inputFileURL, outputFileUrl: outputFileURL, settings: settings) { (exporter) in
                     if let exporter = exporter {
                         switch exporter.status {
