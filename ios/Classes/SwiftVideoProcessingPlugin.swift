@@ -16,7 +16,7 @@ public class VideoProcessSettings {
 }
 
 public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
-    public static var _channel: FlutterMethodChannel?;
+    public static var _channel: FlutterMethodChannel?
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         _channel = FlutterMethodChannel(name: "video_processing", binaryMessenger: registrar.messenger())
@@ -58,7 +58,6 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                         print("Exporter is not initialized.")
                     }
                 }
-                
             } else {
                 result(nil)
             }
@@ -71,7 +70,7 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
 }
 
 class VSVideoSpeeder: NSObject {
-    let MaxAudioSpeed = 20.0
+    let MaxAudioSpeed = 10.0
     
     /// Singleton instance of `VSVideoSpeeder`
     static var shared: VSVideoSpeeder = {
@@ -126,10 +125,15 @@ class VSVideoSpeeder: NSObject {
             compositionVideoTrack?.preferredTransform = videoTrack.preferredTransform
             
             let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetMediumQuality)
+            let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { (_) in
+                SwiftVideoProcessingPlugin.sendProgressForCurrentVideoProcess(progress: Double(exporter?.progress ?? 0.0))
+                print("Progress is at", (exporter?.progress) ?? -1.0)
+            }
             exporter?.outputURL = outputFileUrl
             exporter?.outputFileType = AVFileType.mp4
             exporter?.shouldOptimizeForNetworkUse = true
             exporter?.exportAsynchronously(completionHandler: {
+                timer.invalidate()
                 completion(exporter)
             })
         } catch let error {
