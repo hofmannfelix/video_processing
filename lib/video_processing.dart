@@ -39,14 +39,12 @@ class VideoProcessing {
       taskProgressControllers[taskId]?.stream;
 
   static Future<String> processVideo(
-      {String inputPath, String outputPath, List<VideoProcessSettings> settings}) async {
+      {String inputPath, String outputPath, List<VideoProcessSettings> settings}) {
     final taskId = outputPath;
-    if (taskProgressControllers[taskId] != null) return taskId;
+    if (taskProgressControllers[taskId] != null) return Future.value(taskId);
     taskProgressControllers[taskId] = StreamController.broadcast();
-
     final settingsMap = settings.map((s) => s.asMap).toList();
-    await _channel.invokeMethod('processVideo', [inputPath, outputPath, settingsMap]);
-    return taskId;
+    return _channel.invokeMethod('processVideo', [inputPath, outputPath, settingsMap]);
   }
 
   @deprecated

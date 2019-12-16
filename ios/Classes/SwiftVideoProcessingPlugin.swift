@@ -43,6 +43,7 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                             break
                         case .completed:
                             print("Scaled video has been generated successfully!")
+                            SwiftVideoProcessingPlugin.sendProgressForCurrentVideoProcess(taskId: outputFileURL.relativePath, progress: 1.0)
                             printFileSizeInMB(filePath: outputFileURL.relativePath)
                             result(outputFileURL.relativePath) //TODO: should return before calling export
                             break
