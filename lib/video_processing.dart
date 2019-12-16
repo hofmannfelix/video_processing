@@ -27,7 +27,7 @@ class VideoProcessing {
           String taskId = call.arguments['taskId'];
           double progress = call.arguments['progress'] ?? 0.0;
           _taskProgressControllers[taskId].add(progress);
-          if (progress < 0.0 || progress >= 100.0)
+          if (progress < 0.0 || progress >= 1.0)
             _taskProgressControllers.remove(taskId).close();
         }
       });

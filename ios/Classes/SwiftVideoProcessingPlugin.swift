@@ -64,8 +64,8 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    public static func sendProgressForCurrentVideoProcess(progress: Double) {
-        _channel?.invokeMethod("updateProgress", arguments: ["progress": progress])
+    public static func sendProgressForCurrentVideoProcess(taskId: String, progress: Double) {
+        _channel?.invokeMethod("updateProgress", arguments: ["taskId": taskId, "progress": progress])
     }
 }
 
@@ -126,7 +126,7 @@ class VSVideoSpeeder: NSObject {
             
             let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetMediumQuality)
             let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { (_) in
-                SwiftVideoProcessingPlugin.sendProgressForCurrentVideoProcess(progress: Double(exporter?.progress ?? 0.0))
+                SwiftVideoProcessingPlugin.sendProgressForCurrentVideoProcess(taskId: outputFileUrl.relativePath, progress: Double(exporter?.progress ?? 0.0))
                 print("Progress is at", (exporter?.progress) ?? -1.0)
             }
             exporter?.outputURL = outputFileUrl
