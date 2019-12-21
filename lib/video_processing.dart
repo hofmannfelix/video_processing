@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+typedef void ProgressStreamInitCallback(Stream<double> progressStream);
 typedef void ProgressCallback(double progress);
 
 class VideoProcessSettings {
@@ -27,8 +28,7 @@ class VideoProcessing {
           String taskId = call.arguments['taskId'];
           double progress = call.arguments['progress'] ?? 0.0;
           _taskProgressControllers[taskId].add(progress);
-          if (progress < 0.0 || progress >= 1.0)
-            _taskProgressControllers.remove(taskId).close();
+          if (progress < 0.0 || progress >= 1.0) _taskProgressControllers.remove(taskId).close();
         }
       });
     }
@@ -39,10 +39,17 @@ class VideoProcessing {
       taskProgressControllers[taskId]?.stream;
 
   static Future<String> processVideo(
-      {String inputPath, String outputPath, List<VideoProcessSettings> settings}) {
+      {String inputPath,
+      String outputPath,
+      List<VideoProcessSettings> settings,
+      ProgressStreamInitCallback onProgressStreamInitialized}) {
     final taskId = outputPath;
-    if (taskProgressControllers[taskId] != null) return Future.value(taskId);
+    if (taskProgressControllers[taskId] != null) {
+      onProgressStreamInitialized(progressStream(taskId: taskId));
+      return Future.value(taskId);
+    }
     taskProgressControllers[taskId] = StreamController.broadcast();
+    onProgressStreamInitialized(progressStream(taskId: taskId));
     final settingsMap = settings.map((s) => s.asMap).toList();
     return _channel.invokeMethod('processVideo', [inputPath, outputPath, settingsMap]);
   }
