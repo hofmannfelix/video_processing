@@ -6,12 +6,14 @@ import MobileCoreServices
 public class VideoProcessSettings {
     final let start: Int64
     final var end: Int64
-    final var speed: Double
+    final var speed: Double?
+    final var text: String?
     
-    init(start: Int64, end: Int64, speed: Double) {
+    init(start: Int64, end: Int64, speed: Double?, text: String?) {
         self.start = start
         self.end = end
         self.speed = speed
+        self.text = text
     }
 }
 
@@ -24,17 +26,19 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
         registrar.addMethodCallDelegate(instance, channel: _channel!)
     }
     
+    private let MaxAudioSpeed = 10.0
+    
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         if call.method == "processVideo" {
             if let args = call.arguments as? [AnyObject],
                 let inputPath = args[0] as? String,
                 let outputPath = args[1] as? String,
                 let settingsMap = args[2] as? [[String: AnyObject]] {
-                let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as! Int), end: Int64($0["end"] as! Int), speed: $0["speed"] as? Double ?? 1.0)})
+                let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as! Int), end: Int64($0["end"] as! Int), speed: $0["speed"] as? Double, text: $0["text"] as? String)})
                 
                 let inputFileURL = URL(fileURLWithPath: inputPath)
                 let outputFileURL = URL(fileURLWithPath: outputPath)
-                VSVideoSpeeder.shared.scaleAsset(inputUrl: inputFileURL, outputFileUrl: outputFileURL, settings: settings) { (exporter) in
+                scaleAsset(inputUrl: inputFileURL, outputFileUrl: outputFileURL, settings: settings) { (exporter) in
                     if let exporter = exporter {
                         switch exporter.status {
                         case .failed:
@@ -43,7 +47,7 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                             break
                         case .completed:
                             print("Scaled video has been generated successfully!")
-                            SwiftVideoProcessingPlugin.sendProgressForCurrentVideoProcess(taskId: outputFileURL.relativePath, progress: 1.0)
+                            self.sendProgressForCurrentVideoProcess(taskId: outputFileURL.relativePath, progress: 1.0)
                             printFileSizeInMB(filePath: outputFileURL.relativePath)
                             result(outputFileURL.relativePath) //TODO: should return before calling export
                             break
@@ -65,20 +69,11 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
         }
     }
     
-    public static func sendProgressForCurrentVideoProcess(taskId: String, progress: Double) {
-        _channel?.invokeMethod("updateProgress", arguments: ["taskId": taskId, "progress": progress])
+    private func sendProgressForCurrentVideoProcess(taskId: String, progress: Double) {
+        SwiftVideoProcessingPlugin._channel?.invokeMethod("updateProgress", arguments: ["taskId": taskId, "progress": progress])
     }
-}
-
-class VSVideoSpeeder: NSObject {
-    let MaxAudioSpeed = 10.0
     
-    /// Singleton instance of `VSVideoSpeeder`
-    static var shared: VSVideoSpeeder = {
-        return VSVideoSpeeder()
-    }()
-    
-    func scaleAsset(inputUrl: URL, outputFileUrl: URL, settings: [VideoProcessSettings], completion: @escaping (_ exporter: AVAssetExportSession?) -> Void) {
+    private func scaleAsset(inputUrl: URL, outputFileUrl: URL, settings: [VideoProcessSettings], completion: @escaping (_ exporter: AVAssetExportSession?) -> Void) {
         let asset = AVAsset(url: inputUrl)
         let timeRange = CMTimeRangeMake(kCMTimeZero, asset.duration)
         let videoTracks = asset.tracks(withMediaType: AVMediaType.video)
@@ -104,14 +99,16 @@ class VSVideoSpeeder: NSObject {
             
             /// Get the scaled video duration
             settings.forEach({ settings in
+                if let speed = settings.speed, speed != 1.0 { return }
+                
                 let sectionDuration = settings.end - settings.start
                 var timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(sectionDuration, 1000))
-                let scaledDuration = CMTimeMake(Int64(Double(sectionDuration) / settings.speed), 1000)
+                let scaledDuration = CMTimeMake(Int64(Double(sectionDuration) / settings.speed!), 1000)
                 compositionVideoTrack?.scaleTimeRange(timeRange, toDuration: scaledDuration)
 
                 /// Speed up audio to max and remove remaining audio track to maintain the same length as the final video track
-                if settings.speed >= MaxAudioSpeed {
-                    let speedFactor = MaxAudioSpeed / settings.speed
+                if settings.speed! >= MaxAudioSpeed {
+                    let speedFactor = MaxAudioSpeed / settings.speed!
                     let fractionedDuration = Int64(Double(sectionDuration) * speedFactor)
                     let cutOffStart = settings.start + Int64(Double(sectionDuration) * speedFactor)
                     let cutOffDuration = Int64(Double(sectionDuration) * (1.0 - speedFactor))
@@ -126,8 +123,8 @@ class VSVideoSpeeder: NSObject {
             compositionVideoTrack?.preferredTransform = videoTrack.preferredTransform
             
             let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetMediumQuality)
-            let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { (_) in
-                SwiftVideoProcessingPlugin.sendProgressForCurrentVideoProcess(taskId: outputFileUrl.relativePath, progress: Double(exporter?.progress ?? 0.0))
+            let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] (_) in
+                self?.sendProgressForCurrentVideoProcess(taskId: outputFileUrl.relativePath, progress: Double(exporter?.progress ?? 0.0))
                 print("Progress is at", (exporter?.progress) ?? -1.0)
             }
             exporter?.outputURL = outputFileUrl
