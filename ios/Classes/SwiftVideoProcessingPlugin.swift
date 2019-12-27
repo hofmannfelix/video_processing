@@ -82,6 +82,10 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
             return
         }
         do {
+            //Currently only supports either speed settings or text settings
+            let isSpeedAnimation = settings.first?.speed != nil
+            let isTextAnimation = settings.first?.text != nil
+            
             /// Video track
             let videoTrack = videoTracks.first!
             let mixComposition = AVMutableComposition()
@@ -98,34 +102,39 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
             try? compositionAudioTrack?.insertTimeRange(timeRange, of: audioTrack!, at: kCMTimeZero)
             
             /// Get the scaled video duration
-            settings.forEach({ settings in
-                if let speed = settings.speed, speed != 1.0 { return }
-                
-                let sectionDuration = settings.end - settings.start
-                var timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(sectionDuration, 1000))
-                let scaledDuration = CMTimeMake(Int64(Double(sectionDuration) / settings.speed!), 1000)
-                compositionVideoTrack?.scaleTimeRange(timeRange, toDuration: scaledDuration)
-
-                /// Speed up audio to max and remove remaining audio track to maintain the same length as the final video track
-                if settings.speed! >= MaxAudioSpeed {
-                    let speedFactor = MaxAudioSpeed / settings.speed!
-                    let fractionedDuration = Int64(Double(sectionDuration) * speedFactor)
-                    let cutOffStart = settings.start + Int64(Double(sectionDuration) * speedFactor)
-                    let cutOffDuration = Int64(Double(sectionDuration) * (1.0 - speedFactor))
+            if isSpeedAnimation {
+                settings.forEach({ settings in
+                    if settings.speed ?? 1.0 == 1.0 { return }
                     
-                    /// Cut of audio track fraction that wont be sped up
-                    timeRange = CMTimeRangeMake(CMTimeMake(cutOffStart, 1000), CMTimeMake(cutOffDuration, 1000))
-                    compositionAudioTrack?.removeTimeRange(timeRange)
-                    timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(fractionedDuration, 1000))
-                }
-                compositionAudioTrack?.scaleTimeRange(timeRange, toDuration: scaledDuration)
-            })
+                    let sectionDuration = settings.end - settings.start
+                    var timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(sectionDuration, 1000))
+                    let scaledDuration = CMTimeMake(Int64(Double(sectionDuration) / settings.speed!), 1000)
+                    compositionVideoTrack?.scaleTimeRange(timeRange, toDuration: scaledDuration)
+
+                    /// Speed up audio to max and remove remaining audio track to maintain the same length as the final video track
+                    if settings.speed! >= MaxAudioSpeed {
+                        let speedFactor = MaxAudioSpeed / settings.speed!
+                        let fractionedDuration = Int64(Double(sectionDuration) * speedFactor)
+                        let cutOffStart = settings.start + Int64(Double(sectionDuration) * speedFactor)
+                        let cutOffDuration = Int64(Double(sectionDuration) * (1.0 - speedFactor))
+                        
+                        /// Cut of audio track fraction that wont be sped up
+                        timeRange = CMTimeRangeMake(CMTimeMake(cutOffStart, 1000), CMTimeMake(cutOffDuration, 1000))
+                        compositionAudioTrack?.removeTimeRange(timeRange)
+                        timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(fractionedDuration, 1000))
+                    }
+                    compositionAudioTrack?.scaleTimeRange(timeRange, toDuration: scaledDuration)
+                })
+            }
             compositionVideoTrack?.preferredTransform = videoTrack.preferredTransform
             
             let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetMediumQuality)
             let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] (_) in
                 self?.sendProgressForCurrentVideoProcess(taskId: outputFileUrl.relativePath, progress: Double(exporter?.progress ?? 0.0))
                 print("Progress is at", (exporter?.progress) ?? -1.0)
+            }
+            if isTextAnimation {
+                exporter?.videoComposition = textLayerComposition(settings: settings, videoSize: CGSize(width: videoTrack.naturalSize.height, height: videoTrack.naturalSize.width), mixComposition: mixComposition)
             }
             exporter?.outputURL = outputFileUrl
             exporter?.outputFileType = AVFileType.mp4
@@ -140,6 +149,60 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
             return
         }
     }
+}
+
+func textLayerComposition(settings: [VideoProcessSettings], videoSize: CGSize, mixComposition: AVMutableComposition) -> AVMutableVideoComposition {
+
+    let parentLayer = CALayer()
+    let videoLayer = CALayer()
+    parentLayer.frame = CGRect(origin: CGPoint.zero, size: videoSize)
+    videoLayer.frame = CGRect(origin: CGPoint.zero, size: videoSize)
+    parentLayer.addSublayer(videoLayer)
+    
+    ///Text setup
+    settings.forEach { settings in
+        let start = Double(settings.start) / 1000.0
+        let duration = Double(settings.end - settings.start) / 1000.0
+        let videoText = CATextLayer()
+        videoText.string = settings.text
+        videoText.font = CTFontCreateSystemFontWithSize(size: 22)
+        videoText.frame = CGRect(origin: CGPoint.zero, size: videoSize)
+        videoText.alignmentMode = kCAAlignmentCenter
+        videoText.foregroundColor = UIColor(red: 0.7, green: 0.0, blue: 1.0, alpha: 1.0).cgColor
+        videoText.add(subtitleAnimation(at: start, for: duration), forKey: "opacityLayer\(0)")
+        parentLayer.addSublayer(videoText)
+    }
+    
+    let videoTrack = mixComposition.tracks(withMediaType: AVMediaType.video).first
+    let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: videoTrack!)
+    layerInstruction.setTransform(videoTrack!.preferredTransform, at: kCMTimeZero)
+    
+    let instruction = AVMutableVideoCompositionInstruction()
+    instruction.timeRange = CMTimeRange(start: kCMTimeZero, duration: mixComposition.duration)
+    instruction.layerInstructions = [layerInstruction]
+    
+    let videoComposition = AVMutableVideoComposition()
+    videoComposition.frameDuration = CMTimeMake(1, 30)
+    videoComposition.renderSize = videoSize
+    videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(postProcessingAsVideoLayer: videoLayer, in: parentLayer)
+    videoComposition.instructions = [instruction]
+    return videoComposition
+}
+
+func getSubtitlesAnimation(duration: CFTimeInterval,startTime:Double)->CAKeyframeAnimation {
+    let animation = CAKeyframeAnimation(keyPath:"opacity")
+    animation.duration = duration
+    animation.calculationMode = kCAAnimationDiscrete
+    animation.values = [0,1,1,0,0]
+    animation.keyTimes = [0,0.001,0.99,0.999,1]
+    animation.isRemovedOnCompletion = false
+    animation.fillMode = kCAFillModeBoth
+    animation.beginTime = AVCoreAnimationBeginTimeAtZero + startTime
+    return animation
+}
+
+func CTFontCreateSystemFontWithSize(size: CGFloat) -> CTFont {
+    return CTFontCreateWithName("TimesNewRomanPSMT" as CFString, size,  nil)
 }
 
 func printFileSizeInMB(filePath: String) {

@@ -88,23 +88,29 @@ class _HomeState extends State<HomeScreen> {
     await File(inputFilepath).writeAsBytes(bytes);
 
     print("Start generating video");
-    final start = DateTime.now();
-    final settings = [
-      VideoProcessSettings(start: Duration(seconds: 50), end: Duration(seconds: 60), speed: 0.5),
-      VideoProcessSettings(start: Duration(seconds: 30), end: Duration(seconds: 50), speed: 4.0),
-      VideoProcessSettings(start: Duration(seconds: 10), end: Duration(seconds: 20), speed: 3.0),
-    ];
+    try {
+      final start = DateTime.now();
+//      final settings = Iterable.generate(10 * 60).map((i) {
+//        final start = Duration(milliseconds: (i * 1000.0 / 10.0).toInt());
+//        final end = Duration(milliseconds: ((i + 1) * 1000.0 / 10.0).toInt());
+//        final text = start.toString();
+//        return VideoProcessSettings(start: start, end: end, text: text);
+//      }).toList();
 
-    _outputFilepath = await VideoProcessing.processVideo(
-        inputPath: inputFilepath, outputPath: outputFilepath, settings: settings);
-//    VideoProcessing.progressStream(taskId: _outputFilepath)
-//        .listen((p) => setState(() => _progress = p));
+      final settings = [VideoProcessSettings(start: Duration.zero, end: Duration(seconds: 10), text: "hey")];
 
-    _generationTime = DateTime.now().difference(start);
+      _outputFilepath = await VideoProcessing.processVideo(
+          inputPath: inputFilepath, outputPath: outputFilepath, settings: settings);
 
-    print("Completed video generation");
-    _infoText = "Generation took ${_generationTime.inSeconds} seconds";
-    if (mounted) setState(() => _isGenerating = false);
+      _generationTime = DateTime.now().difference(start);
+
+      print("Completed video generation");
+      _infoText = "Generation took ${_generationTime.inSeconds} seconds";
+      if (mounted) setState(() => _isGenerating = false);
+    } catch(e, s) {
+      print(e);
+      print(s);
+    }
   }
 }
 
