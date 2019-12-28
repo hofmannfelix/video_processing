@@ -99,7 +99,7 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
             
             /// Get the scaled video duration
             settings.forEach({ settings in
-                if let speed = settings.speed, speed != 1.0 { return }
+                if let speed = settings.speed, speed == 1.0 { return }
                 
                 let sectionDuration = settings.end - settings.start
                 var timeRange = CMTimeRangeMake(CMTimeMake(settings.start, 1000), CMTimeMake(sectionDuration, 1000))
