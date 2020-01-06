@@ -90,7 +90,10 @@ class _HomeState extends State<HomeScreen> {
     print("Start generating video");
     final start = DateTime.now();
     final settings = [
-      VideoProcessSettings(start: Duration(seconds: 0), end: Duration(seconds: 10), text: "was geht"),
+      VideoProcessSettings(start: Duration(seconds: 0), end: Duration(seconds: 10), text: "The"),
+      VideoProcessSettings(start: Duration(seconds: 0), end: Duration(seconds: 10), text: "Challenge"),
+      VideoProcessSettings(start: Duration(seconds: 0), end: Duration(seconds: 10), text: "Is"),
+      VideoProcessSettings(start: Duration(seconds: 0), end: Duration(seconds: 10), text: "OVER!!!"),
 //      VideoProcessSettings(start: Duration(seconds: 30), end: Duration(seconds: 50), speed: 4.0),
 //      VideoProcessSettings(start: Duration(seconds: 10), end: Duration(seconds: 20), speed: 3.0),
     ];

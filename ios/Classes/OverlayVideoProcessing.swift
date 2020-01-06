@@ -8,32 +8,49 @@
 import AVFoundation
 
 class OverlayVideoProcessing {
-    static func generateVideoWithOverlay(inputPath: String, outputFilePath: String, settings: [VideoProcessSettings], completion: @escaping (URL?) -> ()) {
-        
+    static func generateVideoWithOverlay(inputPath: String, outputFilePath: String, settings: [VideoProcessSettings], completion: @escaping (AVAssetExportSession?) -> ()) {
         let bufferedProvider = generateImages(filePath: inputPath, fps: 30, speed: 1.0)
-        let textFrameProvider = TextFrameProvider(settings: settings)
+        let textFrameProvider = TextFrameProvider(settings: settings, size: bufferedProvider?.frameSize ?? CGSize.zero)
         let mixedFrameProvider = MixedFrameProvider(provider: [bufferedProvider!, textFrameProvider])
-        generateVideoFromFrames(with: mixedFrameProvider, outputFilePath: outputFilePath, fps: 30, speed: 1.0, completion: completion)
+        let intermediateOutput = outputFilePath.replacingOccurrences(of: ".mp4", with: "-tmp.mp4")
+        generateVideoFromFrames(with: mixedFrameProvider, outputFilePath: intermediateOutput, fps: 30, speed: 1.0) { intermediateOutputUrl in
+            let originalAsset = AVAsset(url: URL(fileURLWithPath: inputPath))
+            let intermediateAsset = AVAsset(url: intermediateOutputUrl!)
+            let timeRange = CMTimeRangeMake(kCMTimeZero, intermediateAsset.duration)
+            let videoTracks = intermediateAsset.tracks(withMediaType: AVMediaType.video)
+            do {
+                /// Video track
+                let videoTrack = videoTracks.first!
+                let mixComposition = AVMutableComposition()
+                let compositionVideoTrack = mixComposition.addMutableTrack(withMediaType: AVMediaType.video, preferredTrackID: kCMPersistentTrackID_Invalid)
+                try compositionVideoTrack?.insertTimeRange(timeRange, of: videoTrack, at: kCMTimeZero)
+                compositionVideoTrack?.preferredTransform = videoTrack.preferredTransform
+                
+                /// Audio Track
+                let audioTracks = originalAsset.tracks(withMediaType: AVMediaType.audio)
+                let audioTrack = audioTracks.first
+                var compositionAudioTrack: AVMutableCompositionTrack?
+                if !audioTracks.isEmpty {
+                    compositionAudioTrack = mixComposition.addMutableTrack(withMediaType: AVMediaType.audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+                }
+                try compositionAudioTrack?.insertTimeRange(timeRange, of: audioTrack!, at: kCMTimeZero)
+                
+                let exporter = AVAssetExportSession(asset: mixComposition, presetName: AVAssetExportPresetHighestQuality)
+                exporter?.outputURL = URL(fileURLWithPath: outputFilePath)
+                exporter?.outputFileType = AVFileType.mp4
+                exporter?.shouldOptimizeForNetworkUse = true
+                exporter?.exportAsynchronously(completionHandler: {
+                    try? FileManager.default.removeItem(at: intermediateOutputUrl!)
+                    completion(exporter)
+                })
+            } catch let error {
+                print(error.localizedDescription)
+                try? FileManager.default.removeItem(at: intermediateOutputUrl!)
+                completion(nil)
+                return
+            }
+        }
     }
-    
-//    static func generateVideo(assetPaths: [String], outputFilename: String, outputFps: Int, outputSpeed: Double, completion: @escaping (URL?) -> ()) {
-//        let isImg: (String) -> Bool = { $0.contains(".jpg") || $0.contains(".png") }
-//        let providers = assetPaths
-//            .filter({ !$0.isEmpty })
-//            .map { path -> FrameProvider? in
-//                return isImg(path.lowercased())
-//                    ? FileFrameProvider(filesPath: path)
-//                    : generateImages(filePath: path, fps: outputFps, speed: outputSpeed)
-//            }
-//            .filter { $0 != nil }
-//            .map { $0! }
-//        guard !providers.isEmpty else {
-//            completion(nil)
-//            return
-//        }
-//        let mixedFrameProvider = MixedFrameProvider(provider: providers)
-//        generateVideoFromFrames(with: mixedFrameProvider, outputFilename: outputFilename, fps: outputFps, speed: outputSpeed, completion: completion)
-//    }
     
     static private func generateVideoFromFrames(with frameProvider: FrameProvider, outputFilePath: String, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
         let frameRate = CMTimeMake(1, Int32(Double(60*fps/60)))
@@ -336,9 +353,10 @@ private class TextFrameProvider: FrameProvider {
     private var currentString: String?
     private var currentFrame: CGImage?
     
-    init(settings: [VideoProcessSettings]) {
+    init(settings: [VideoProcessSettings], size: CGSize) {
         textStrings = settings.map({ $0.text! })
-        self.totalFrames = textStrings.count
+        frameSize = size
+        totalFrames = textStrings.count
         if let frame = frameAtCurrentIndex {
             frameSize = CGSize(width: frame.width, height: frame.height)
             hasFrames = true
@@ -366,9 +384,10 @@ private class TextFrameProvider: FrameProvider {
         if currentString == textStrings[frameIndex] {
             return currentFrame
         }
-        let frame = CGRect(x: 0, y: 0, width: 100, height: 100)
         let font = UIFont.boldSystemFont(ofSize: 40)
+        let textSize = textStrings[frameIndex].size(withAttributes: [NSAttributedStringKey.font: font])
         let text = NSAttributedString(string: textStrings[frameIndex], attributes: [NSAttributedStringKey.font: font])
+        let frame = CGRect(x: (frameSize.width - textSize.width) / 2.0, y: frameSize.height - textSize.height, width: frameSize.width, height: frameSize.height)
         
         UIGraphicsBeginImageContext(frame.size)
         text.draw(in: frame)
