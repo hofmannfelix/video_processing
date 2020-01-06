@@ -67,9 +67,21 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                 result(nil)
             }
         }
+        if call.method == "processVideoWithOverlay" {
+            if let args = call.arguments as? [AnyObject],
+                let inputPath = args[0] as? String,
+                let outputPath = args[1] as? String,
+                let settingsMap = args[2] as? [[String: AnyObject]] {
+                let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as! Int), end: Int64($0["end"] as! Int), speed: $0["speed"] as? Double, text: $0["text"] as? String)})
+
+                OverlayVideoProcessing.generateVideoWithOverlay(inputPath: inputPath, outputFilePath: outputPath, settings: settings) { path in
+                    result(outputPath)
+                }
+            }
+        }
     }
     
-    private func sendProgressForCurrentVideoProcess(taskId: String, progress: Double) {
+    public func sendProgressForCurrentVideoProcess(taskId: String, progress: Double) {
         SwiftVideoProcessingPlugin._channel?.invokeMethod("updateProgress", arguments: ["taskId": taskId, "progress": progress])
     }
     

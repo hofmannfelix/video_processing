@@ -9,10 +9,11 @@ class VideoProcessSettings {
   final Duration start;
   final Duration end;
   final double speed;
+  final String text;
 
-  VideoProcessSettings({this.start, this.end, this.speed});
+  VideoProcessSettings({this.start, this.end, this.speed, this.text});
 
-  get asMap => {'start': start.inMilliseconds, 'end': end.inMilliseconds, 'speed': speed};
+  get asMap => {'start': start.inMilliseconds, 'end': end.inMilliseconds, 'speed': speed, 'text': text};
 }
 
 class VideoProcessing {
@@ -54,9 +55,19 @@ class VideoProcessing {
     return _channel.invokeMethod('processVideo', [inputPath, outputPath, settingsMap]);
   }
 
-  @deprecated
-  static Future<String> generateVideo(
-      List<String> paths, String filename, int fps, double speed) async {
-    return await _channel.invokeMethod('generateVideo', [paths, filename, fps, speed]);
+  static Future<String> processVideoWithOverlay(
+      {String inputPath,
+        String outputPath,
+        List<VideoProcessSettings> settings,
+        ProgressStreamInitCallback onProgressStreamInitialized}) {
+    final taskId = outputPath;
+    if (taskProgressControllers[taskId] != null) {
+      onProgressStreamInitialized(progressStream(taskId: taskId));
+      return Future.value(taskId);
+    }
+    taskProgressControllers[taskId] = StreamController.broadcast();
+    onProgressStreamInitialized(progressStream(taskId: taskId));
+    final settingsMap = settings.map((s) => s.asMap).toList();
+    return _channel.invokeMethod('processVideoWithOverlay', [inputPath, outputPath, settingsMap]);
   }
 }

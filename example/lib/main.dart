@@ -90,16 +90,13 @@ class _HomeState extends State<HomeScreen> {
     print("Start generating video");
     final start = DateTime.now();
     final settings = [
-      VideoProcessSettings(start: Duration(seconds: 50), end: Duration(seconds: 60), speed: 0.5),
-      VideoProcessSettings(start: Duration(seconds: 30), end: Duration(seconds: 50), speed: 4.0),
-      VideoProcessSettings(start: Duration(seconds: 10), end: Duration(seconds: 20), speed: 3.0),
+      VideoProcessSettings(start: Duration(seconds: 0), end: Duration(seconds: 10), text: "was geht"),
+//      VideoProcessSettings(start: Duration(seconds: 30), end: Duration(seconds: 50), speed: 4.0),
+//      VideoProcessSettings(start: Duration(seconds: 10), end: Duration(seconds: 20), speed: 3.0),
     ];
 
-    _outputFilepath = await VideoProcessing.processVideo(
-        inputPath: inputFilepath, outputPath: outputFilepath, settings: settings);
-//    VideoProcessing.progressStream(taskId: _outputFilepath)
-//        .listen((p) => setState(() => _progress = p));
-
+    _outputFilepath = await VideoProcessing.processVideoWithOverlay(
+        inputPath: inputFilepath, outputPath: outputFilepath, settings: settings, onProgressStreamInitialized: (_) {});
     _generationTime = DateTime.now().difference(start);
 
     print("Completed video generation");
