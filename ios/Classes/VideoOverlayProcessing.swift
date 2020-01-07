@@ -7,7 +7,7 @@
 
 import AVFoundation
 
-class OverlayVideoProcessing {
+class VideoOverlayProcessing {
     static func generateVideoWithOverlay(inputPath: String, outputFilePath: String, settings: [VideoProcessSettings], completion: @escaping (AVAssetExportSession?) -> ()) {
         let bufferedProvider = generateImages(filePath: inputPath, fps: 30, speed: 1.0)
         let textFrameProvider = TextFrameProvider(settings: settings, size: bufferedProvider?.frameSize ?? CGSize.zero)
@@ -386,7 +386,7 @@ private class TextFrameProvider: FrameProvider {
         let color = UIColor(cgColor: UIColor.white.cgColor)
         let textSize = textStrings[frameIndex].size(withAttributes: [NSAttributedStringKey.font: font])
         let text = NSAttributedString(string: textStrings[frameIndex], attributes: [NSAttributedStringKey.font: font, NSAttributedStringKey.foregroundColor: color])
-        let frame = CGRect(x: (frameSize.width - textSize.width) / 2.0, y: frameSize.height - textSize.height, width: frameSize.width, height: frameSize.height)
+        let frame = CGRect(x: (frameSize.width - textSize.width) / 2.0, y: frameSize.height - textSize.height - 50, width: frameSize.width, height: frameSize.height)
         
         UIGraphicsBeginImageContext(frame.size)
         text.draw(in: frame)

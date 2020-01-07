@@ -29,34 +29,35 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
     private let MaxAudioSpeed = 10.0
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        let exporterCallback = { (exporter: AVAssetExportSession?) -> Void in
+            if let exporter = exporter, let outputFilePath = exporter.outputURL?.relativePath {
+                switch exporter.status {
+                case .failed:
+                    print(exporter.error?.localizedDescription ?? "Error in exporting..")
+                    break
+                case .completed:
+                    print("Video has been generated successfully!")
+                    self.sendProgressForCurrentVideoProcess(taskId: outputFilePath, progress: 1.0)
+                    printFileSizeInMB(filePath: outputFilePath)
+                    result(outputFilePath)
+                    break
+                case .unknown, .waiting, .exporting, .cancelled: break
+                }
+            }
+            else {
+                print("Exporter is not initialized.")
+            }
+        }
+        
         if call.method == "processVideo" {
             if let args = call.arguments as? [AnyObject],
                 let inputPath = args[0] as? String,
                 let outputPath = args[1] as? String,
                 let settingsMap = args[2] as? [[String: AnyObject]] {
                 let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as! Int), end: Int64($0["end"] as! Int), speed: $0["speed"] as? Double, text: $0["text"] as? String)})
-                
                 let inputFileURL = URL(fileURLWithPath: inputPath)
                 let outputFileURL = URL(fileURLWithPath: outputPath)
-                scaleAsset(inputUrl: inputFileURL, outputFileUrl: outputFileURL, settings: settings) { (exporter) in
-                    if let exporter = exporter {
-                        switch exporter.status {
-                        case .failed:
-                            print(exporter.error?.localizedDescription ?? "Error in exporting..")
-                            break
-                        case .completed:
-                            print("Video has been generated successfully!")
-                            self.sendProgressForCurrentVideoProcess(taskId: outputFileURL.relativePath, progress: 1.0)
-                            printFileSizeInMB(filePath: outputFileURL.relativePath)
-                            result(outputFileURL.relativePath) //TODO: should return before calling export
-                            break
-                        case .unknown, .waiting, .exporting, .cancelled: break
-                        }
-                    }
-                    else {
-                        print("Exporter is not initialized.")
-                    }
-                }
+                scaleAsset(inputUrl: inputFileURL, outputFileUrl: outputFileURL, settings: settings, completion: exporterCallback)
             } else {
                 result(nil)
             }
@@ -67,13 +68,9 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                 let outputPath = args[1] as? String,
                 let settingsMap = args[2] as? [[String: AnyObject]] {
                 let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as? Int ?? 0), end: Int64($0["end"] as? Int ?? 0), speed: $0["speed"] as? Double, text: $0["text"] as? String)})
-
-                OverlayVideoProcessing.generateVideoWithOverlay(inputPath: inputPath, outputFilePath: outputPath, settings: settings) { exporter in
-                    
-                    printFileSizeInMB(filePath: outputPath)
-                    
-                    result(outputPath)
-                }
+                VideoOverlayProcessing.generateVideoWithOverlay(inputPath: inputPath, outputFilePath: outputPath, settings: settings, completion: exporterCallback)
+            } else {
+                result(nil)
             }
         }
     }
