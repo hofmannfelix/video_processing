@@ -74,7 +74,7 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                 let settingsMap = args[2] as? [[String: AnyObject]] {
                 let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as! Int), end: Int64($0["end"] as! Int), speed: $0["speed"] as? Double, text: $0["text"] as? String)})
 
-                OverlayVideoProcessing.generateVideoWithOverlay(inputPath: inputPath, outputFilePath: outputPath, settings: settings) { path in
+                OverlayVideoProcessing.generateVideoWithOverlay(inputPath: inputPath, outputFilePath: outputPath, settings: settings) { exporter in
                     
                     printFileSizeInMB(filePath: outputPath)
                     

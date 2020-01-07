@@ -357,10 +357,7 @@ private class TextFrameProvider: FrameProvider {
         textStrings = settings.map({ $0.text! })
         frameSize = size
         totalFrames = textStrings.count
-        if let frame = frameAtCurrentIndex {
-            frameSize = CGSize(width: frame.width, height: frame.height)
-            hasFrames = true
-        }
+        hasFrames = frameAtCurrentIndex != nil
     }
     
     var nextFrame: CGImage? {
@@ -384,9 +381,11 @@ private class TextFrameProvider: FrameProvider {
         if currentString == textStrings[frameIndex] {
             return currentFrame
         }
-        let font = UIFont.boldSystemFont(ofSize: 40)
+        //TODO: make font, size, color & offset customizable
+        let font = UIFont(name: "DIN Condensed", size: 40.0)!
+        let color = UIColor(cgColor: UIColor.white.cgColor)
         let textSize = textStrings[frameIndex].size(withAttributes: [NSAttributedStringKey.font: font])
-        let text = NSAttributedString(string: textStrings[frameIndex], attributes: [NSAttributedStringKey.font: font])
+        let text = NSAttributedString(string: textStrings[frameIndex], attributes: [NSAttributedStringKey.font: font, NSAttributedStringKey.foregroundColor: color])
         let frame = CGRect(x: (frameSize.width - textSize.width) / 2.0, y: frameSize.height - textSize.height, width: frameSize.width, height: frameSize.height)
         
         UIGraphicsBeginImageContext(frame.size)
