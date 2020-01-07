@@ -43,20 +43,14 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                         switch exporter.status {
                         case .failed:
                             print(exporter.error?.localizedDescription ?? "Error in exporting..")
-                            //send error to progress method
                             break
                         case .completed:
-                            print("Scaled video has been generated successfully!")
+                            print("Video has been generated successfully!")
                             self.sendProgressForCurrentVideoProcess(taskId: outputFileURL.relativePath, progress: 1.0)
                             printFileSizeInMB(filePath: outputFileURL.relativePath)
                             result(outputFileURL.relativePath) //TODO: should return before calling export
                             break
-                        case .unknown: break
-                        case .waiting: break
-                        case .exporting:
-                            //TODO: status never called so set up timer that update progress with SwiftVideoProcessingPlugin.sendProgressForCurrentVideoProcess(progress: Double(exporter.progress))
-                            break
-                        case .cancelled: break
+                        case .unknown, .waiting, .exporting, .cancelled: break
                         }
                     }
                     else {
@@ -72,7 +66,7 @@ public class SwiftVideoProcessingPlugin: NSObject, FlutterPlugin {
                 let inputPath = args[0] as? String,
                 let outputPath = args[1] as? String,
                 let settingsMap = args[2] as? [[String: AnyObject]] {
-                let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as! Int), end: Int64($0["end"] as! Int), speed: $0["speed"] as? Double, text: $0["text"] as? String)})
+                let settings = settingsMap.map({VideoProcessSettings(start: Int64($0["start"] as? Int ?? 0), end: Int64($0["end"] as? Int ?? 0), speed: $0["speed"] as? Double, text: $0["text"] as? String)})
 
                 OverlayVideoProcessing.generateVideoWithOverlay(inputPath: inputPath, outputFilePath: outputPath, settings: settings) { exporter in
                     

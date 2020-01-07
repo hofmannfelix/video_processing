@@ -13,7 +13,8 @@ class VideoProcessSettings {
 
   VideoProcessSettings({this.start, this.end, this.speed, this.text});
 
-  get asMap => {'start': start.inMilliseconds, 'end': end.inMilliseconds, 'speed': speed, 'text': text};
+  get asMap =>
+      {'start': start?.inMilliseconds, 'end': end?.inMilliseconds, 'speed': speed, 'text': text};
 }
 
 class VideoProcessing {
@@ -44,6 +45,7 @@ class VideoProcessing {
       String outputPath,
       List<VideoProcessSettings> settings,
       ProgressStreamInitCallback onProgressStreamInitialized}) {
+    onProgressStreamInitialized ??= (_) {};
     final taskId = outputPath;
     if (taskProgressControllers[taskId] != null) {
       onProgressStreamInitialized(progressStream(taskId: taskId));
@@ -60,6 +62,7 @@ class VideoProcessing {
         String outputPath,
         List<VideoProcessSettings> settings,
         ProgressStreamInitCallback onProgressStreamInitialized}) {
+    onProgressStreamInitialized ??= (_) {};
     final taskId = outputPath;
     if (taskProgressControllers[taskId] != null) {
       onProgressStreamInitialized(progressStream(taskId: taskId));
