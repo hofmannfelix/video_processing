@@ -97,7 +97,7 @@ class _HomeState extends State<HomeScreen> {
       return VideoProcessSettings(text: videoTimestamp.toString());
     }).toList();
 
-    _outputFilepath = await VideoProcessing.processVideoWithOverlay(
+    _outputFilepath = await VideoProcessing.processVideo(
         inputPath: inputFilepath,
         outputPath: outputFilepath,
         settings: settings,
@@ -105,7 +105,9 @@ class _HomeState extends State<HomeScreen> {
     _generationTime = DateTime.now().difference(start);
 
     print("Completed video generation");
-    _infoText = "Generation took ${_generationTime.inSeconds} seconds";
+    final fileSize = (File(outputFilepath).lengthSync() / (1024*1024)).toStringAsPrecision(3);
+    _infoText =
+        "Generation took ${_generationTime.inSeconds} seconds, and Size ${fileSize}MB";
     if (mounted) setState(() => _isGenerating = false);
   }
 }
