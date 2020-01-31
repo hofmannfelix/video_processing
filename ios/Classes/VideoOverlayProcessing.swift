@@ -382,7 +382,7 @@ private class TextFrameProvider: FrameProvider {
             return currentFrame
         }
         //TODO: make font, size, color & offset customizable
-        let font = UIFont(name: "DIN Condensed", size: 40.0)!
+        let font = UIFont(name: "DIN Condensed", size: 24.0)!
         let color = UIColor(cgColor: UIColor.white.cgColor)
         let textSize = textStrings[frameIndex].size(withAttributes: [NSAttributedStringKey.font: font])
         let text = NSAttributedString(string: textStrings[frameIndex], attributes: [NSAttributedStringKey.font: font, NSAttributedStringKey.foregroundColor: color])
