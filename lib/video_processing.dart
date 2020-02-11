@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
@@ -31,7 +32,6 @@ class VideoProcessing {
           String taskId = call.arguments['taskId'];
           double progress = call.arguments['progress'] ?? 0.0;
           _taskProgressControllers[taskId].add(progress);
-          if (progress < 0.0 || progress >= 1.0) _taskProgressControllers.remove(taskId).close();
         }
       });
     }
@@ -54,10 +54,14 @@ class VideoProcessing {
     }
     taskProgressControllers[taskId] = StreamController.broadcast();
     onProgressStreamInitialized(progressStream(taskId: taskId));
-    //final settingsMap = settings.reversed.map((s) => s.asMap).toList();
-    //return _channel.invokeMethod('processVideo', [inputPath, outputPath, settingsMap]);
-    final result = await _processVideoFFMPEG(
-        inputPath: inputPath, outputPath: outputPath, settings: settings);
+    String result;
+    if (Platform.isIOS || Platform.isMacOS) {
+      final settingsMap = settings.reversed.map((s) => s.asMap).toList();
+      result = await _channel.invokeMethod('processVideo', [inputPath, outputPath, settingsMap]);
+    } else {
+      result = await _processVideoFFMPEG(
+          inputPath: inputPath, outputPath: outputPath, settings: settings);
+    }
     _taskProgressControllers.remove(taskId).close();
     return result;
   }
@@ -66,7 +70,7 @@ class VideoProcessing {
       {String inputPath,
       String outputPath,
       List<VideoProcessSettings> settings,
-      ProgressStreamInitCallback onProgressStreamInitialized}) {
+      ProgressStreamInitCallback onProgressStreamInitialized}) async {
     onProgressStreamInitialized ??= (_) {};
     final taskId = outputPath;
     if (taskProgressControllers[taskId] != null) {
@@ -76,7 +80,10 @@ class VideoProcessing {
     taskProgressControllers[taskId] = StreamController.broadcast();
     onProgressStreamInitialized(progressStream(taskId: taskId));
     final settingsMap = settings.map((s) => s.asMap).toList();
-    return _channel.invokeMethod('processVideoWithOverlay', [inputPath, outputPath, settingsMap]);
+    final result = await _channel
+        .invokeMethod('processVideoWithOverlay', [inputPath, outputPath, settingsMap]);
+    _taskProgressControllers.remove(taskId).close();
+    return result;
   }
 
   static Future<String> _processVideoFFMPEG(
@@ -125,7 +132,6 @@ class VideoProcessing {
       '$inputPath',
       '-filter_complex',
       '$filterInput',
-      //'[0:v]trim=0:10,setpts=PTS-STARTPTS[v1]; [0:v]trim=10:50,setpts=0.25*(PTS-STARTPTS)[v2]; [0:v]trim=50,setpts=PTS-STARTPTS[v3]; [0:a]atrim=0:10,asetpts=PTS-STARTPTS[a1]; [0:a]atrim=10:50,asetpts=PTS-STARTPTS,atempo=4[a2]; [0:a]atrim=50,asetpts=PTS-STARTPTS[a3]; [v1][a1][v2][a2][v3][a3]concat=n=3:v=1:a=1',
       '-preset',
       'superfast',
       '-crf',
@@ -145,14 +151,3 @@ class VideoProcessing {
     return outputPath;
   }
 }
-
-//TODO: Change settings into ffmpeg command
-//    final s = """
-//    [0:v]trim=0:10,setpts=PTS-STARTPTS[v1];
-//    [0:v]trim=10:50,setpts=0.25*(PTS-STARTPTS)[v2];
-//    [0:v]trim=50,setpts=PTS-STARTPTS[v3];
-//    [0:a]atrim=0:10,asetpts=PTS-STARTPTS[a1];
-//    [0:a]atrim=10:50,asetpts=PTS-STARTPTS,atempo=4[a2];
-//    [0:a]atrim=50,asetpts=PTS-STARTPTS[a3];
-//    [v1][a1][v2][a2][v3][a3]concat=n=3:v=1:a=1,
-//    """;
