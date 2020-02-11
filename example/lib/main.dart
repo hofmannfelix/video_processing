@@ -74,8 +74,6 @@ class _HomeState extends State<HomeScreen> {
     final docDir = (await getApplicationDocumentsDirectory()).path;
     final inputFilepath = join(docDir, inputFilename);
     final outputFilepath = join(docDir, outputFilename);
-
-    _infoText = "Generating Video with different speeds...";
     setState(() => _isGenerating = true);
 
     print("Clean up documents directory");
@@ -91,21 +89,25 @@ class _HomeState extends State<HomeScreen> {
     final start = DateTime.now();
     final vpc = VideoPlayerController.file(File(inputFilepath));
     await vpc.initialize();
-    final framesCount = vpc.value.duration.inMilliseconds * (30.0 / 1000.0);
-    final settings = List.generate(framesCount.toInt(), (i) {
-      final videoTimestamp = Duration(milliseconds: i ~/ (30.0 / 1000.0));
-      return VideoProcessSettings(text: videoTimestamp.toString());
-    }).toList();
+    final settings = [
+      VideoProcessSettings(start: Duration.zero, end: Duration(seconds: 30), speed: 4.0),
+      VideoProcessSettings(start: Duration(seconds: 30), end: Duration(seconds: 35), speed: 0.5),
+      VideoProcessSettings(start: Duration(seconds: 35), end: vpc.value.duration, speed: 1.0),
+    ];
 
-    _outputFilepath = await VideoProcessing.processVideoWithOverlay(
+    _outputFilepath = await VideoProcessing.processVideo(
         inputPath: inputFilepath,
         outputPath: outputFilepath,
         settings: settings,
-        onProgressStreamInitialized: (_) {});
+        onProgressStreamInitialized: (progressStream) {
+          progressStream.listen(
+              (p) => setState(() => _infoText = "Done to ${(p * 100).toStringAsFixed(2)}%"));
+        });
     _generationTime = DateTime.now().difference(start);
 
     print("Completed video generation");
-    _infoText = "Generation took ${_generationTime.inSeconds} seconds";
+    final fileSize = (File(outputFilepath).lengthSync() / (1024 * 1024)).toStringAsPrecision(3);
+    _infoText = "Generation took ${_generationTime.inSeconds} seconds, and Size ${fileSize}MB";
     if (mounted) setState(() => _isGenerating = false);
   }
 }
