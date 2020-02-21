@@ -135,9 +135,7 @@ class VideoProcessing {
       '-preset',
       'superfast',
       '-crf',
-      '30',
-      '-profile:v',
-      'baseline',
+      '24',
       '$outputPath',
     ]);
     if (returnCode != 0) {
