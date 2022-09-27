@@ -52,7 +52,7 @@ private class VideoManipulation {
     }
     
     static func generateVideoFromFrames(with frameProvider: FrameProvider, outputFilename: String, fps: Int, speed: Double, completion: @escaping (URL?) -> ()) {
-        let frameRate = CMTimeMake(1, Int32(Double(60*fps/60)))
+        let frameRate = CMTimeMake(value: 1, timescale: Int32(Double(60*fps/60)))
         let generator = ImageToVideoGenerator(frameProvider: frameProvider, outputFilename: outputFilename, frameRate: frameRate, completionBlock: completion)
         generator.startGenerating()
     }
@@ -60,7 +60,9 @@ private class VideoManipulation {
     static func generateImages(filePath: String, fps: Int, speed: Double) -> BufferedFrameProvider? {
         let fileUrl = URL(fileURLWithPath: filePath)
         let asset = AVURLAsset(url: fileUrl, options: nil)
+       
         let videoDuration = asset.duration
+        print(asset.tracks(withMediaType: .video))
         
         guard let frameSize = asset.tracks(withMediaType: .video).first?.naturalSize else { return nil }
         var frameForTimes = [NSValue]()
@@ -68,7 +70,7 @@ private class VideoManipulation {
         let sampleCounts = Int(videoDuration.seconds * (Double(fps) / speed))
         let step = totalTimeLength / sampleCounts
         for i in 0 ..< sampleCounts {
-            let cmTime = CMTimeMake(Int64(i * step), Int32(videoDuration.timescale))
+            let cmTime = CMTimeMake(value: Int64(i * step), timescale: Int32(videoDuration.timescale))
             frameForTimes.append(NSValue(time: cmTime))
         }
         return BufferedFrameProvider(totalFrames: sampleCounts, frameSize: frameSize, asset: asset, frameTimestamps: frameForTimes)
@@ -98,7 +100,7 @@ private class ImageToVideoGenerator {
                 return
             }
         }
-        let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecH264,
+        let videoSettings:[String: Any] = [AVVideoCodecKey: AVVideoCodecType.h264,
                                            AVVideoWidthKey: Int(frameProvider.frameSize.width),
                                            AVVideoHeightKey: Int(frameProvider.frameSize.height)]
         let outputFileUrl = URL(fileURLWithPath: outputFilePath)
@@ -115,7 +117,7 @@ private class ImageToVideoGenerator {
     
     func startGenerating() {
         self.assetWriter.startWriting()
-        self.assetWriter.startSession(atSourceTime: kCMTimeZero)
+        self.assetWriter.startSession(atSourceTime: CMTime.zero)
         var i = 0
         let mediaInputQueue = DispatchQueue(label: "mediaInputQueue")
         writeInput.requestMediaDataWhenReady(on: mediaInputQueue) {
@@ -124,10 +126,10 @@ private class ImageToVideoGenerator {
                     guard let buffer = self.frameProvider.nextFrameBuffer else { continue }
                     print("Write Frame \(i)")
                     if i == 0 {
-                        self.bufferAdapter.append(buffer, withPresentationTime: kCMTimeZero)
+                        self.bufferAdapter.append(buffer, withPresentationTime: CMTime.zero)
                     } else {
                         let value = i - 1
-                        let lastTime = CMTimeMake(Int64(value), self.frameRate.timescale)
+                        let lastTime = CMTimeMake(value: Int64(value), timescale: self.frameRate.timescale)
                         let presentTime = CMTimeAdd(lastTime, self.frameRate)
                         self.bufferAdapter.append(buffer, withPresentationTime: presentTime)
                     }
@@ -253,8 +255,8 @@ private class BufferedFrameProvider: FrameProvider {
         let timestamps = Array(frameTimestamps[readFrames..<frameTimestamps.count])
         if !timestamps.isEmpty {
             self.generator = AVAssetImageGenerator(asset: asset)
-            self.generator!.requestedTimeToleranceAfter = kCMTimeZero
-            self.generator!.requestedTimeToleranceBefore = kCMTimeZero
+            self.generator!.requestedTimeToleranceAfter = CMTime.zero
+            self.generator!.requestedTimeToleranceBefore = CMTime.zero
             self.generator!.generateCGImagesAsynchronously(forTimes: timestamps, completionHandler: { requestedTime, image, actualTime, result, error in
                 if let frame = image {
                     self.pushFrame(frame: frame)
